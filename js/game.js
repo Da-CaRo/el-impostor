@@ -1,12 +1,114 @@
 import * as UI from './ui.js';
 import { PALABRAS_CLAVE_LISTA } from '../data/palabras.js';
+import {
+    MAX_PLAYERS,
+    MAX_NAME_LENGTH,
+    MIN_NAME_LENGTH,
+    MIN_PLAYERS
+} from './config.js';
 
-// Almacenará la configuración del juego actual
+// === VARIABLES DE ESTADO (ASUMIDAS DE PASOS ANTERIORES) ===
+let players = [];
+let nextPlayerId = 1;
+
 let gameSettings = {
     numPlayers: 0,
     numImpostors: 0,
     palabraSecreta: ''
 };
+
+
+/**
+ * Reordena la lista de jugadores basándose en el elemento arrastrado y el objetivo.
+ * @param {number} draggedId ID del jugador arrastrado.
+ * @param {number} targetId ID del jugador objetivo (donde se suelta).
+ */
+export function reorderPlayers(draggedId, targetId) {
+    if (draggedId === targetId) return;
+
+    const draggedIndex = players.findIndex(p => p.id === draggedId);
+    const targetIndex = players.findIndex(p => p.id === targetId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // 1. Obtener el jugador arrastrado
+    const [draggedPlayer] = players.splice(draggedIndex, 1);
+
+    // 2. Insertar el jugador en la nueva posición
+    players.splice(targetIndex, 0, draggedPlayer);
+
+    // 3. Refrescar la UI
+    refreshPlayerListUI();
+}
+
+// Llama a la función de renderizado de la UI, pasando la lista actual y los callbacks
+function refreshPlayerListUI() {
+    UI.renderPlayerList(players, removePlayer, editPlayerName, reorderPlayers);
+}
+
+
+/**
+ * Añade un jugador a la lista.
+ * @param {string} name Nombre del jugador.
+ * @returns {boolean} True si se añadió, false si falló la validación.
+ */
+export function addPlayer(name) {
+    const cleanName = name.trim().toUpperCase();
+
+    // Validaciones
+    if (cleanName.length === 0 || cleanName.length > MAX_NAME_LENGTH) { // Usamos MAX_NAME_LENGTH
+        return false;
+    }
+    if (players.length >= MAX_PLAYERS) { // Usamos MAX_PLAYERS
+        alert(`Máximo ${MAX_PLAYERS} jugadores alcanzado.`);
+        return false;
+    }
+    if (players.some(p => p.name === cleanName)) {
+        alert("Ese nombre ya está en la lista.");
+        return false;
+    }
+
+    const newPlayer = { id: nextPlayerId++, name: cleanName };
+    players.push(newPlayer);
+    refreshPlayerListUI();
+    return true;
+}
+
+/**
+ * Elimina un jugador por su ID.
+ * @param {number} id ID del jugador a eliminar.
+ */
+export function removePlayer(id) {
+    players = players.filter(p => p.id !== id);
+    refreshPlayerListUI();
+}
+
+/**
+ * Edita el nombre de un jugador por su ID y refresca la lista si es válido.
+ * @param {number} id ID del jugador a editar.
+ * @param {string} newName El nuevo nombre del jugador.
+ * @returns {true | string} True si se editó. Si falló, retorna un mensaje de error (string).
+ */
+export function editPlayerName(id, newName) {
+    const cleanName = newName.trim().toUpperCase();
+
+    // === VALIDACIÓN: Nombre vacío o demasiado largo ===
+    if (cleanName.length === 0 || cleanName.length > MAX_NAME_LENGTH) { // Usamos MAX_NAME_LENGTH
+        return `El nombre no es válido (${MIN_NAME_LENGTH}-${MAX_NAME_LENGTH} caracteres).`;
+    }
+
+    if (players.some(p => p.name === cleanName && p.id !== id)) {
+        return "Ese nombre ya está en uso.";
+    }
+
+    const playerIndex = players.findIndex(p => p.id === id);
+    if (playerIndex !== -1) {
+        players[playerIndex].name = cleanName;
+        refreshPlayerListUI();
+        return true; // Éxito
+    }
+    return "Error desconocido al editar el jugador.";
+}
 
 /**
  * Genera una palabra secreta aleatoria de la lista disponible.
@@ -15,9 +117,9 @@ let gameSettings = {
 function seleccionarPalabra() {
     // Usamos PALABRAS_CLAVE_LISTA importada
     const indice = Math.floor(Math.random() * PALABRAS_CLAVE_LISTA.length);
-    
+
     // Retornamos solo la propiedad 'palabra' del objeto
-    return PALABRAS_CLAVE_LISTA[indice].palabra; 
+    return PALABRAS_CLAVE_LISTA[indice].palabra;
 }
 
 /**
@@ -61,7 +163,7 @@ function asignarRoles(totalPlayers, numImpostors) {
  * @param {Array<string>} roles Array de roles mezclado.
  * @param {string} palabraSecreta La palabra que verán los tripulantes.
  */
-function generarTarjetas(numPlayers, roles, palabraSecreta) {
+function generarTarjetas(playerList, roles, palabraSecreta) {
     const gameBoard = document.getElementById('game-board');
     gameBoard.innerHTML = ''; // Limpiar cualquier tarjeta anterior
 
@@ -69,7 +171,8 @@ function generarTarjetas(numPlayers, roles, palabraSecreta) {
     const cardBaseClasses = "relative bg-tarjeta p-4 rounded-lg shadow-xl border border-gray-700 aspect-square flex items-center justify-center cursor-pointer transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]";
 
 
-    for (let i = 0; i < numPlayers; i++) {
+    for (let i = 0; i < playerList.length; i++) {
+        const player = playerList[i]; // Obtenemos el objeto jugador
         const role = roles[i];
 
         const card = document.createElement('div');
@@ -77,15 +180,15 @@ function generarTarjetas(numPlayers, roles, palabraSecreta) {
 
         // Contenido de la tarjeta ahora es solo el número de jugador
         const content = document.createElement('div');
-        // Usamos la fuente grande de acento para la cara oculta
-        content.className = 'text-3xl md:text-5xl font-bold font-agente text-acento';
-        content.textContent = `${i + 1}`;
+        content.className = 'text-3xl md:text-5xl font-bold font-agente text-acento truncate';
+        content.textContent = player.name; // <-- USAMOS EL NOMBRE
 
         // =========================================================
         // LÓGICA DE CLIC MODIFICADA PARA USAR EL MODAL
         // =========================================================
         card.onclick = function () {
-            revelarRol(i, role, palabraSecreta);
+            // Pasamos el nombre del jugador a revelarRol
+            revelarRol(player.name, role, palabraSecreta);
         };
         // =========================================================
 
@@ -107,14 +210,19 @@ export function finalizarPartida() {
 
 /**
  * Inicia una nueva partida con el número de jugadores e impostores seleccionados.
- * @param {string} playersStr Número de jugadores como string.
  * @param {string} impostorsStr Número de impostores como string.
  */
-export function iniciarPartida(playersStr, impostorsStr) {
-    const numPlayers = parseInt(playersStr, 10);
+export function iniciarPartida(impostorsStr) {
+    const numPlayers = players.length;
     const numImpostors = parseInt(impostorsStr, 10);
 
-    // Validación básica
+    // Validación: Mínimo 4 jugadores
+    if (numPlayers < 3) {
+        alert("Se requieren al menos 4 jugadores para empezar la partida.");
+        return;
+    }
+
+    // Validación básica de impostores
     if (numImpostors >= numPlayers) {
         alert("El número de Impostores debe ser menor que el número de jugadores.");
         return;
@@ -125,11 +233,12 @@ export function iniciarPartida(playersStr, impostorsStr) {
     gameSettings.numImpostors = numImpostors;
     gameSettings.palabraSecreta = seleccionarPalabra();
 
-    // 2. Asignar roles aleatoriamente
+    // 2. Asignar roles aleatoriamente (Asegúrate de que 'players' no esté vacío)
     const rolesAsignados = asignarRoles(numPlayers, numImpostors);
 
     // 3. Crear las tarjetas y la interfaz
-    generarTarjetas(numPlayers, rolesAsignados, gameSettings.palabraSecreta);
+    // Pasamos el array de objetos de jugador completo
+    generarTarjetas(players, rolesAsignados, gameSettings.palabraSecreta);
 
     // 4. Mostrar la interfaz de juego
     UI.ocultarBotonesInicio();
@@ -146,8 +255,8 @@ export function iniciarPartida(playersStr, impostorsStr) {
  * @param {string} role El rol asignado ("IMPOSTOR" o "PALABRA").
  * @param {string} palabraSecreta La palabra clave (si es tripulante).
  */
-function revelarRol(playerIndex, role, palabraSecreta) {
-    let title = `JUGADOR ${playerIndex + 1}`;
+function revelarRol(playerName, role, palabraSecreta) {
+    let title = `${playerName}`;
     let body = '';
 
     if (role === "PALABRA") {
