@@ -1,7 +1,5 @@
 import * as UI from './ui.js';
-
-// Lista de palabras posibles (puedes ampliarla)
-const PALABRAS_CLAVE = ["Gato", "Perro", "Flor", "Coche", "Playa", "Nube", "Fuego", "Agua", "Luna", "Sol"];
+import { PALABRAS_CLAVE_LISTA } from '../data/palabras.js';
 
 // Almacenará la configuración del juego actual
 let gameSettings = {
@@ -15,8 +13,11 @@ let gameSettings = {
  * @returns {string} La palabra secreta elegida.
  */
 function seleccionarPalabra() {
-    const indice = Math.floor(Math.random() * PALABRAS_CLAVE.length);
-    return PALABRAS_CLAVE[indice];
+    // Usamos PALABRAS_CLAVE_LISTA importada
+    const indice = Math.floor(Math.random() * PALABRAS_CLAVE_LISTA.length);
+    
+    // Retornamos solo la propiedad 'palabra' del objeto
+    return PALABRAS_CLAVE_LISTA[indice].palabra; 
 }
 
 /**
