@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="img/favicon.png">
+    <title>El Infiltrado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+
+
+    <style>
+        /* 1. DEFINICIÓN DE VARIABLES DE COLOR */
+        :root {
+            --color-acento: #ea7908;
+            --color-fondo: #111827;
+            --color-tarjeta: #1F2937;
+
+            --color-texto-claro: #F3F4F6;
+            --color-texto-gris: #9CA3AF;
+            --color-borde: #374151;
+        }
+
+        /* 2. APLICACIÓN DE VARIABLES A LOS ESTILOS GLOBALMENTE */
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            background-color: var(--color-fondo);
+            /* Usando variable */
+            color: var(--color-texto-claro);
+            /* Usando variable */
+        }
+
+        /* Para usar una fuente monoespaciada en títulos específicos */
+        .font-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .font-agente {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Sobrescribir las clases de Tailwind con las variables (para el color de acento) */
+        .text-acento {
+            color: var(--color-acento);
+        }
+
+        .hover-acento:hover {
+            color: var(--color-acento) !important;
+        }
+
+        .border-acento:hover {
+            border-color: var(--color-acento) !important;
+        }
+
+        .bg-tarjeta {
+            background-color: var(--color-tarjeta);
+        }
+
+        .border-tarjeta {
+            border-color: var(--color-borde);
+        }
+
+        .text-texto-gris {
+            color: var(--color-texto-gris);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen antialiased">
+    <header class="bg-gray-900 shadow-md p-4 border-b border-gray-800 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center py-0">
+            <div class="flex items-center space-x-2">
+                <img src="img/favicon.png" alt="Icono El Impostor" class="h-8 w-8">
+                <h1 class="text-3xl font-extrabold text-acento font-agente">
+                    El Impostor
+                </h1>
+            </div>
+
+            <button id="reset-game-btn"
+                class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-red-400 font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden"
+                title="Acabar Partida">
+                🛑 Salir
+            </button>
+        </div>
+    </header>
+    <div id="start-buttons">
+        <div class="py-8 md:py-12">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+
+                <h1 class="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
+                    Bienvenido a <span class="font-agente text-acento">
+                        El Impostor
+                    </span>
+                </h1>
+            </div>
+
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
+                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Opciones</h3>
+                            <p class="text-texto-gris text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+                                <select id="players-select"
+                                    class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                                    <option>3</option>
+                                    <option>4</option>
+                                    <option>5</option>
+                                    <option>6</option>
+                                    <option>7</option>
+                                    <option>8</option>
+                                    <option>9</option>
+                                    <option>10</option>
+                                    <option>11</option>
+                                    <option>12</option>
+                                    <option>13</option>
+                                    <option>14</option>
+                                    <option>15</option>
+                                    <option>16</option>
+                                </select>
+                                <select id="impostors-select"
+                                    class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                                    <option>1</option>
+                                    <option>2</option>
+                                    <option>3</option>
+                                    <option>4</option>
+                                </select>
+                                <button id="start-btn"
+                                    class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
+                                    Empezar
+                                </button>
+                            </div>
+                            </p>
+                        </div>
+                        <a href="#" target="_blank" class="block">
+                            <span class="mt-5 inline-block text-sm font-medium text-acento hover:underline">Ver
+                                Instrucciones →</span></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <main class="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+
+        <div id="game-layout" class="flex flex-col lg:flex-row lg:space-x-8 hidden">
+            <!--
+            <div id="control-bar-wrapper"
+                class="flex flex-col sm:flex-row lg:flex-col justify-between items-center w-full lg:w-64 mb-6 lg:mb-0">
+
+                <div id="game-controls"
+                    class="flex space-x-2 w-full sm:w-auto lg:w-full lg:justify-start lg:space-x-0 lg:flex-col lg:space-y-2 mt-4 sm:mt-0 lg:mt-0">
+
+                </div>
+
+            </div>
+            -->
+            <div id="game-board" class="grid grid-cols-4 gap-3 sm:gap-4 md:gap-5 w-full lg:flex-1 aspect-[16/9] ">
+            </div>
+
+        </div>
+    </main>
+
+    <div id="role-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+        <div id="modal-content"
+            class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
+
+            <h2 id="modal-title" class="text-4xl font-agente font-extrabold mb-4 text-acento">ROL ASIGNADO</h2>
+
+            <div id="modal-body" class="mb-6">
+            </div>
+
+            <button id="modal-close-btn"
+                class="w-full py-3 px-4 bg-acento hover:bg-[#c96200] text-gray-900 font-bold rounded-lg transition duration-150 text-lg">
+                ¡Entendido! Ocultar y pasar.
+            </button>
+        </div>
+    </div>
+
+    <footer class="bg-gray-900 border-t border-gray-800 mt-16 py-4">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center text-center md:text-left">
+
+                <p class="text-xs text-texto-gris mb-4 md:mb-0">
+                    &copy; <span id="currentYearFooter"></span> <span class="font-code">
+                        <span class="-mr-1 inline-block">Da_CaRo</span> Labs
+                    </span> Desarrollado con pasión.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        document.getElementById('currentYearFooter').textContent = new Date().getFullYear();
+
+        // Importar las funciones y el motor del juego
+        import * as Game from './js/game.js';
+        import * as UI from './js/ui.js';
+
+        // =========================================================
+        // INICIO: DOMContentLoaded
+        // =========================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            //Controles del juego
+            document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
+
+            document.getElementById('start-btn').addEventListener('click', () => {
+                const selectedPlayers = document.getElementById('players-select').value;
+                const selectedImpostors = document.getElementById('impostors-select').value;
+                Game.iniciarPartida(selectedPlayers, selectedImpostors);
+            });
+
+            // Agrega el listener para el botón de cerrar modal (si usas game.js para esto)
+            const closeBtn = document.getElementById('modal-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', UI.ocultarModal);
+            }
+
+        });
+    </script>
+</body>
+
+</html>
