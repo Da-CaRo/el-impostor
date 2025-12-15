@@ -95,6 +95,9 @@
                         El Impostor
                     </span>
                 </h1>
+                <p class="text-xl text-texto-gris mb-12 max-w-2xl mx-auto">
+                    Selecciona el número de impostores, y añade los jugadores.
+                </p>
             </div>
 
             <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -107,23 +110,7 @@
                             <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Opciones</h3>
                             <p class="text-texto-gris text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <select id="players-select"
-                                    class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
-                                    <option>3</option>
-                                    <option>4</option>
-                                    <option>5</option>
-                                    <option>6</option>
-                                    <option>7</option>
-                                    <option>8</option>
-                                    <option>9</option>
-                                    <option>10</option>
-                                    <option>11</option>
-                                    <option>12</option>
-                                    <option>13</option>
-                                    <option>14</option>
-                                    <option>15</option>
-                                    <option>16</option>
-                                </select>
+
                                 <select id="impostors-select"
                                     class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
                                     <option>1</option>
@@ -141,6 +128,54 @@
                         <a href="#" target="_blank" class="block">
                             <span class="mt-5 inline-block text-sm font-medium text-acento hover:underline">Ver
                                 Instrucciones →</span></a>
+                    </div>
+
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
+                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Jugadores</h3>
+                            <p class="text-texto-gris text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+                                <label for="new-player-name" class="text-texto-gris">Añadir Jugadores (mínimo
+                                    3):</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="new-player-name" placeholder="Introduce nombre (máx. 15)"
+                                        class="flex-1 p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none placeholder-gray-400"
+                                        maxlength="15"> <button id="add-player-btn"
+                                        class="shrink-0 bg-acento hover:bg-orange-600 text-white font-bold p-3 rounded-lg transition duration-150">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+
+                            </div>
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
+                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Jugadores</h3>
+                            <p class="text-texto-gris text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+
+                                <div id="players-list-container"
+                                    class="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg min-h-[50px] max-h-[250px] overflow-y-auto">
+                                    <p id="empty-list-message" class="text-texto-gris italic text-sm">Aún no hay
+                                        jugadores añadidos.</p>
+                                    <ul id="players-list" class="space-y-2">
+                                    </ul>
+                                </div>
+
+                            </div>
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,6 +236,7 @@
         // Importar las funciones y el motor del juego
         import * as Game from './js/game.js';
         import * as UI from './js/ui.js';
+        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS } from './js/config.js';
 
         // =========================================================
         // INICIO: DOMContentLoaded
@@ -210,9 +246,9 @@
             document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
 
             document.getElementById('start-btn').addEventListener('click', () => {
-                const selectedPlayers = document.getElementById('players-select').value;
+                //const selectedPlayers = document.getElementById('players-select').value;
                 const selectedImpostors = document.getElementById('impostors-select').value;
-                Game.iniciarPartida(selectedPlayers, selectedImpostors);
+                Game.iniciarPartida(selectedImpostors);
             });
 
             // Agrega el listener para el botón de cerrar modal (si usas game.js para esto)
@@ -221,6 +257,30 @@
                 closeBtn.addEventListener('click', UI.ocultarModal);
             }
 
+            // === Control de Añadir Jugadores ===
+            const newPlayerInput = document.getElementById('new-player-name');
+            const addPlayerBtn = document.getElementById('add-player-btn');
+
+            // Asignar la longitud máxima del nombre desde la configuración
+            newPlayerInput.maxLength = MAX_NAME_LENGTH; // <-- NUEVO
+
+            function handleAddPlayer() {
+                const name = newPlayerInput.value;
+                if (Game.addPlayer(name)) { // Llama a la lógica en game.js
+                    newPlayerInput.value = ''; // Limpia el input si se añadió con éxito
+                    newPlayerInput.focus();
+                } else {
+                    // Actualizamos el mensaje de alerta con las constantes
+                    alert(`El nombre debe tener al menos ${MIN_NAME_LENGTH} caracter, no puede estar repetido y el máximo es de ${MAX_PLAYERS} jugadores.`);
+                }
+            }
+
+            addPlayerBtn.addEventListener('click', handleAddPlayer);
+            newPlayerInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleAddPlayer();
+                }
+            });
         });
     </script>
 </body>
