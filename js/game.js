@@ -4,18 +4,141 @@ import {
     MAX_PLAYERS,
     MAX_NAME_LENGTH,
     MIN_NAME_LENGTH,
-    MIN_PLAYERS
+    MIN_PLAYERS,
+    GAME_STATE_KEY,
+    PLAYER_LIST_KEY,
+    IMPOSTORS_KEY,
+    USED_WORDS_KEY
 } from './config.js';
+
+
 
 // === VARIABLES DE ESTADO (ASUMIDAS DE PASOS ANTERIORES) ===
 let players = [];
 let nextPlayerId = 1;
+let usedWordsHistory = [];
 
 let gameSettings = {
     numPlayers: 0,
     numImpostors: 0,
     palabraSecreta: ''
 };
+
+// =========================================================
+// LÓGICA DE PERSISTENCIA DE PALABRAS USADAS
+// =========================================================
+
+/**
+ * Carga el historial de palabras usadas desde localStorage.
+ */
+export function loadUsedWordsHistory() {
+    try {
+        const storedHistory = localStorage.getItem(USED_WORDS_KEY);
+        if (storedHistory) {
+            usedWordsHistory = JSON.parse(storedHistory);
+            console.log(`Historial de palabras cargado: ${usedWordsHistory.length} usadas.`);
+        } else {
+            usedWordsHistory = [];
+        }
+    } catch (e) {
+        console.error("Error al cargar el historial de palabras:", e);
+        usedWordsHistory = []; // Resetear en caso de error de parseo
+    }
+}
+
+/**
+ * Guarda el historial de palabras usadas en localStorage.
+ */
+function saveUsedWordsHistory() {
+    try {
+        localStorage.setItem(USED_WORDS_KEY, JSON.stringify(usedWordsHistory));
+    } catch (e) {
+        console.error("Error al guardar el historial de palabras:", e);
+    }
+}
+
+/**
+ * Reinicia el historial de palabras usadas (lo vacía).
+ */
+function resetUsedWordsHistory() {
+    usedWordsHistory = [];
+    saveUsedWordsHistory();
+    console.log("¡Todas las palabras han sido usadas! El historial ha sido vaciado.");
+}
+
+// =========================================================
+// LÓGICA DE PERSISTENCIA DE LISTA (PRE-PARTIDA)
+// =========================================================
+
+/**
+ * Guarda la opción de impostores seleccionada en localStorage.
+ * @param {string} impostorsOption Opción seleccionada (e.g., "1", "RANDOM_30").
+ */
+export function saveImpostorsCount(impostorsOption) { // Aseguramos que sea exportada
+    try {
+        // Guardamos el valor tal cual, como cadena de texto
+        localStorage.setItem(IMPOSTORS_KEY, impostorsOption.toString());
+    } catch (e) {
+        console.error("Error al guardar la opción de impostores:", e);
+    }
+}
+
+/**
+ * Carga la opción de impostores desde localStorage.
+ * @returns {string|null} El valor de opción de impostores guardado o null si no existe.
+ */
+export function loadImpostorsCount() {
+    try {
+        const storedCount = localStorage.getItem(IMPOSTORS_KEY);
+        if (storedCount) {
+            // CORRECCIÓN: Devolver el valor crudo como string, SIN parseInt()
+            return storedCount;
+        }
+    } catch (e) {
+        console.error("Error al cargar la opción de impostores:", e);
+        localStorage.removeItem(IMPOSTORS_KEY);
+    }
+    return null;
+}
+
+/**
+ * Guarda la lista actual de jugadores (solo ID y nombre) en localStorage.
+ */
+function savePlayerList() {
+    // Mapeamos el array para asegurar que no se guarden propiedades temporales como 'role'
+    const basicPlayers = players.map(p => ({ id: p.id, name: p.name }));
+    try {
+        localStorage.setItem(PLAYER_LIST_KEY, JSON.stringify(basicPlayers));
+    } catch (e) {
+        console.error("Error al guardar la lista de jugadores:", e);
+    }
+}
+
+/**
+ * Carga la lista de jugadores desde localStorage si existe.
+ * @returns {boolean} True si se cargó una lista, false si no.
+ */
+export function loadPlayerList() {
+    try {
+        const storedList = localStorage.getItem(PLAYER_LIST_KEY);
+        if (storedList) {
+            const list = JSON.parse(storedList);
+            if (list.length > 0) {
+                players = list; // Restaurar el array global
+                // Restaurar el siguiente ID correctamente
+                nextPlayerId = list.reduce((max, p) => Math.max(max, p.id), 0) + 1;
+                // Redibujar la lista en la UI
+                refreshPlayerListUI();
+                console.log("Lista de jugadores restaurada.");
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error("Error al cargar la lista de jugadores:", e);
+        localStorage.removeItem(PLAYER_LIST_KEY); // Limpiar lista corrupta
+    }
+    return false;
+}
 
 
 /**
@@ -36,7 +159,7 @@ export function reorderPlayers(draggedId, targetId) {
 
     // 2. Insertar el jugador en la nueva posición
     players.splice(targetIndex, 0, draggedPlayer);
-
+    savePlayerList();
     // 3. Refrescar la UI
     refreshPlayerListUI();
 }
@@ -70,6 +193,7 @@ export function addPlayer(name) {
 
     const newPlayer = { id: nextPlayerId++, name: cleanName };
     players.push(newPlayer);
+    savePlayerList();
     refreshPlayerListUI();
     return true;
 }
@@ -80,6 +204,7 @@ export function addPlayer(name) {
  */
 export function removePlayer(id) {
     players = players.filter(p => p.id !== id);
+    savePlayerList();
     refreshPlayerListUI();
 }
 
@@ -104,6 +229,7 @@ export function editPlayerName(id, newName) {
     const playerIndex = players.findIndex(p => p.id === id);
     if (playerIndex !== -1) {
         players[playerIndex].name = cleanName;
+        savePlayerList();
         refreshPlayerListUI();
         return true; // Éxito
     }
@@ -111,15 +237,33 @@ export function editPlayerName(id, newName) {
 }
 
 /**
- * Genera una palabra secreta aleatoria de la lista disponible.
- * @returns {string} La palabra secreta elegida.
+ * Selecciona una palabra clave aleatoria de la lista disponible que no haya sido usada.
+ * @returns {string} La palabra clave seleccionada.
  */
 function seleccionarPalabra() {
-    // Usamos PALABRAS_CLAVE_LISTA importada
-    const indice = Math.floor(Math.random() * PALABRAS_CLAVE_LISTA.length);
+    // 1. Filtrar las palabras no usadas
+    const availableWords = PALABRAS_CLAVE_LISTA.filter(word => 
+        !usedWordsHistory.includes(word)
+    );
 
-    // Retornamos solo la propiedad 'palabra' del objeto
-    return PALABRAS_CLAVE_LISTA[indice].palabra;
+    let palabraSeleccionada;
+
+    if (availableWords.length === 0) {
+        // 2. Si todas las palabras han sido usadas, resetear el historial
+        resetUsedWordsHistory(); 
+        
+        // Usar la lista completa nuevamente para la selección
+        palabraSeleccionada = shuffleArray(PALABRAS_CLAVE_LISTA)[0];
+    } else {
+        // 3. Seleccionar una palabra aleatoria de las disponibles
+        palabraSeleccionada = shuffleArray(availableWords)[0];
+    }
+    
+    // 4. Añadir la palabra seleccionada al historial y guardarlo
+    usedWordsHistory.push(palabraSeleccionada);
+    saveUsedWordsHistory(); 
+    
+    return palabraSeleccionada;
 }
 
 /**
@@ -167,20 +311,15 @@ function generarTarjetas(playerList, roles, palabraSecreta) {
     const gameBoard = document.getElementById('game-board');
     gameBoard.innerHTML = ''; // Limpiar cualquier tarjeta anterior
 
-    // Define las clases CSS para las tarjetas
-    const cardBaseClasses = "relative bg-tarjeta p-4 rounded-lg shadow-xl border border-gray-700 aspect-square flex items-center justify-center cursor-pointer transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]";
-
-
     for (let i = 0; i < playerList.length; i++) {
         const player = playerList[i]; // Obtenemos el objeto jugador
         const role = roles[i];
 
         const card = document.createElement('div');
-        card.className = "relative bg-tarjeta p-4 rounded-lg shadow-xl border border-gray-700 aspect-square flex items-center justify-center cursor-pointer transition duration-300 transform hover:scale-[1.03] active:scale-[0.98]";
-
+        card.className = "relative bg-tarjeta p-4 rounded-lg shadow-xl border border-gray-700 flex items-center justify-center cursor-pointer transition duration-300 transform hover:scale-[1.03] active:scale-[0.98] aspect-[16/9]";
         // Contenido de la tarjeta ahora es solo el número de jugador
         const content = document.createElement('div');
-        content.className = 'text-3xl md:text-5xl font-bold font-agente text-acento truncate';
+        content.className = 'text-xl md:text-3xl font-bold font-agente text-acento truncate';
         content.textContent = player.name; // <-- USAMOS EL NOMBRE
 
         // =========================================================
@@ -198,10 +337,46 @@ function generarTarjetas(playerList, roles, palabraSecreta) {
 }
 
 /**
+ * Carga el estado de la partida desde localStorage si existe.
+ * @returns {Object|null} El objeto de estado del juego o null si no existe.
+ */
+export function loadGameState() {
+    try {
+        const storedState = localStorage.getItem(GAME_STATE_KEY);
+        if (storedState) {
+            return JSON.parse(storedState);
+        }
+    } catch (e) {
+        console.error("Error al cargar el estado de la partida desde localStorage:", e);
+        // Limpiamos el almacenamiento si el JSON está corrupto
+        localStorage.removeItem(GAME_STATE_KEY);
+    }
+    return null;
+}
+
+/**
+ * Resetea el estado del juego y limpia el estado de partida guardado.
+ */
+export function clearGameState() {
+    // Si la partida terminó, aseguramos que players[] tenga solo id/name
+    // (aunque restorePartida lo hace al inicio, este es un buen seguro)
+    // Recalculamos el nextPlayerId por si un jugador fue eliminado durante la partida
+    nextPlayerId = players.length > 0 ? players.reduce((max, p) => Math.max(max, p.id), 0) + 1 : 1;
+
+    // Guardamos la lista actual de jugadores (solo id/name)
+    savePlayerList();
+
+    // Limpiamos el estado de partida (roles, palabra secreta)
+    localStorage.removeItem(GAME_STATE_KEY);
+    console.log("Estado de la partida limpiado.");
+}
+
+/**
  * Elimina el estado de la partida guardada y devuelve la UI al estado inicial.
  */
 export function finalizarPartida() {
     if (confirm("¿Estás seguro de que quieres volver a la pantalla de inicio?")) {
+        clearGameState();
         UI.mostrarBotonesInicio();
         UI.ocultarTablero();
         document.getElementById('game-board').innerHTML = '<p>Pulsa Empezar para jugar.</p>';
@@ -209,40 +384,61 @@ export function finalizarPartida() {
 }
 
 /**
- * Inicia una nueva partida con el número de jugadores e impostores seleccionados.
- * @param {string} impostorsStr Número de impostores como string.
+ * Inicia la partida: asigna roles, elige palabra y guarda el estado.
+ * @param {string|number} impostorsOption Valor seleccionado (e.g., "3", "RANDOM_50").
  */
-export function iniciarPartida(impostorsStr) {
-    const numPlayers = players.length;
-    const numImpostors = parseInt(impostorsStr, 10);
-
-    // Validación: Mínimo 4 jugadores
-    if (numPlayers < 3) {
-        alert("Se requieren al menos 4 jugadores para empezar la partida.");
+export function iniciarPartida(impostorsOption) {
+    if (players.length < MIN_PLAYERS) {
+        alert(`Necesitas al menos ${MIN_PLAYERS} jugadores para empezar.`);
         return;
     }
 
-    // Validación básica de impostores
-    if (numImpostors >= numPlayers) {
-        alert("El número de Impostores debe ser menor que el número de jugadores.");
-        return;
-    }
+    // === NUEVO PASO: CALCULAR EL NÚMERO REAL DE IMPOSTORES ===
+    const numImpostors = calcularNumImpostores(impostorsOption);
 
-    // 1. Configurar estado de la partida
-    gameSettings.numPlayers = numPlayers;
-    gameSettings.numImpostors = numImpostors;
-    gameSettings.palabraSecreta = seleccionarPalabra();
+    // Aseguramos que el resultado no sea mayor que jugadores.length
+    const finalImpostors = Math.min(numImpostors, players.length);
 
-    // 2. Asignar roles aleatoriamente (Asegúrate de que 'players' no esté vacío)
-    const rolesAsignados = asignarRoles(numPlayers, numImpostors);
+    // --- CORRECCIÓN APLICADA AQUÍ ---
+    // 1. Obtener la palabra secreta por separado
+    const palabraSecreta = seleccionarPalabra();
+    console.log(palabraSecreta)
 
-    // 3. Crear las tarjetas y la interfaz
-    // Pasamos el array de objetos de jugador completo
-    generarTarjetas(players, rolesAsignados, gameSettings.palabraSecreta);
+    // 2. Llamar a asignarRoles con el número total de jugadores y el número de impostores
+    // La función asignarRoles SÓLO retorna el array de roles.
+    const roles = asignarRoles(players.length, finalImpostors);
+    // --- FIN DE CORRECCIÓN ---
 
-    // 4. Mostrar la interfaz de juego
+    // Asignar los roles permanentemente a los jugadores 
+    players = players.map((player, index) => ({
+        ...player,
+        role: roles[index] // Ahora 'roles' es un array y no undefined
+    }));
+
+    generarTarjetas(players, roles, palabraSecreta);
+
     UI.ocultarBotonesInicio();
     UI.mostrarTablero();
+
+    // =========================================================
+    // LÓGICA DE ROBUSTEZ: GUARDAR ESTADO EN localStorage
+    // =========================================================
+
+    // 1. Crear el objeto de estado en el formato solicitado
+    const gameState = {
+        palabra: palabraSecreta,
+        jugadores: players.map(p => ({
+            [p.name]: p.role
+        }))
+    };
+
+    // 2. Serializar el objeto a JSON y guardar
+    try {
+        localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameState));
+        console.log("Estado de la partida guardado en localStorage.");
+    } catch (e) {
+        console.error("Error al guardar el estado de la partida en localStorage:", e);
+    }
 }
 
 // =========================================================
@@ -263,7 +459,7 @@ function revelarRol(playerName, role, palabraSecreta) {
         title += ` - ¡TRIPULANTE!`;
         body = `
             <p class="text-base text-texto-gris mb-3">Tu clave secreta es:</p>
-            <p class="text-5xl font-extrabold text-white font-agente mb-4">${palabraSecreta}</p>
+            <p class="text-5xl font-extrabold text-white font-agente mb-4">${palabraSecreta.palabra}</p>
             <p class="text-lg text-texto-gris">Da una pista relacionada con esta palabra sin ser demasiado obvio.</p>
         `;
     } else {
@@ -275,4 +471,108 @@ function revelarRol(playerName, role, palabraSecreta) {
     }
 
     UI.mostrarModal(title, body);
+}
+
+/**
+ * Restaura el estado de la partida desde el objeto cargado de localStorage.
+ * Reconstruye el array de jugadores global y redibuja el tablero.
+ * @param {Object} state Objeto de estado cargado: {palabra: string, jugadores: Array<Object>}.
+ */
+export function restorePartida(state) {
+    // 1. Resetear el estado global y configurar IDs
+    players = [];
+    let currentId = 1;
+    let roles = [];
+
+    // 2. Reconstruir el array de jugadores
+    state.jugadores.forEach(playerRoleObj => {
+        // playerRoleObj es de la forma { "Nombre": "ROL" }
+        const playerName = Object.keys(playerRoleObj)[0];
+        const role = playerRoleObj[playerName];
+
+        // Creamos el objeto jugador completo (con ID y rol)
+        players.push({
+            id: currentId,
+            name: playerName,
+            role: role // Asignamos el rol cargado
+        });
+        roles.push(role); // Guardamos el rol para redibujar las tarjetas
+        currentId++;
+    });
+
+    // 3. Establecer el siguiente ID disponible
+    nextPlayerId = currentId;
+
+    // 4. Redibujar el tablero y la UI
+    // Usamos el array players reconstruido y los roles/palabra del estado cargado
+    generarTarjetas(players, roles, state.palabra);
+
+    // Ocultar pantalla de inicio y mostrar tablero
+    UI.ocultarBotonesInicio();
+    UI.mostrarTablero();
+
+    console.log("Partida restaurada con éxito.");
+}
+
+/**
+ * Elimina todas las variables de estado del juego y palabras usadas del almacenamiento local.
+ */
+export function limpiarTodasVariables() {
+    localStorage.clear()
+    console.log("✅ Todas las variables de juego han sido borradas");
+}
+
+/**
+ * Calcula el número real de impostores basándose en la opción seleccionada.
+ * @param {string} impostorsOption Valor seleccionado (e.g., "3", "RANDOM_50").
+ * @returns {number} El número real de impostores a utilizar.
+ */
+function calcularNumImpostores(impostorsOption) {
+    const totalPlayers = players.length;
+    const minImpostors = 1;
+
+    // --- Validación de Mínimos ---
+    if (totalPlayers < MIN_PLAYERS) {
+        return 0; // No se puede iniciar con menos del mínimo
+    }
+
+    // El límite absoluto superior: se establece como el número total de jugadores.
+    // Si numImpostors = totalPlayers, todos serán impostores.
+    const maxAbsoluteLimit = totalPlayers;
+
+    // 1. Opción de número fijo (1, 2, 3, 4)
+    const fixedNum = parseInt(impostorsOption, 10);
+    if (!isNaN(fixedNum) && fixedNum >= minImpostors) {
+        // Usamos el número fijo, limitado por el número total de jugadores (maxAbsoluteLimit).
+        return Math.min(fixedNum, maxAbsoluteLimit);
+    }
+
+    // 2. Opción Aleatoria (RANDOM_X)
+    let maxLimit = maxAbsoluteLimit; // Inicialmente, el límite es el máximo absoluto
+
+    switch (impostorsOption) {
+        case 'RANDOM_30':
+            // Máximo el 30% de los jugadores.
+            maxLimit = Math.min(Math.ceil(totalPlayers * 0.30), maxAbsoluteLimit); // Usamos Math.ceil para redondear al alza
+            break;
+        case 'RANDOM_50':
+            // Máximo el 50% de los jugadores.
+            maxLimit = Math.min(Math.ceil(totalPlayers * 0.50), maxAbsoluteLimit); // Usamos Math.ceil para redondear al alza
+            break;
+        case 'RANDOM_MAX':
+            // SOLICITUD: No hay límite superior estricto. El límite es el número total de jugadores.
+            // maxLimit ya es igual a maxAbsoluteLimit (totalPlayers).
+            break;
+        default:
+            // Opción no reconocida, usamos 1 por defecto.
+            return minImpostors;
+    }
+
+    // Si el límite superior es 0 (ej: totalPlayers=2, RANDOM_30), lo forzamos a 1 si es posible.
+    // Pero si totalPlayers >= MIN_PLAYERS, el límite siempre será >= 1.
+    const upperLimit = Math.max(minImpostors, maxLimit);
+
+    // Generar el número aleatorio (entre minImpostors y upperLimit, ambos incluidos)
+    // El rango ahora es: [1, totalPlayers]
+    return Math.floor(Math.random() * (upperLimit - minImpostors + 1)) + minImpostors;
 }
