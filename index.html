@@ -15,7 +15,7 @@
     <style>
         /* 1. DEFINICIÓN DE VARIABLES DE COLOR */
         :root {
-            --color-acento: #ea7908;
+            --color-acento: #FF3B30;
             --color-fondo: #111827;
             --color-tarjeta: #1F2937;
 
@@ -112,11 +112,15 @@
                             <div class="flex flex-col space-y-2 mb-4">
 
                                 <select id="impostors-select"
-                                    class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
-                                    <option>1</option>
-                                    <option>2</option>
-                                    <option>3</option>
-                                    <option>4</option>
+                                    class="w-full p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-acento transition duration-150">
+                                    <option value="1" selected>1 Impostor</option>
+                                    <option value="2">2 Impostores</option>
+                                    <option value="3">3 Impostores</option>
+                                    <option value="4">4 Impostores</option>
+
+                                    <option value="RANDOM_30">Impostores Random &lt;30%</option>
+                                    <option value="RANDOM_50">Impostores Random &lt;50%</option>
+                                    <option value="RANDOM_MAX">Impostores Random</option>
                                 </select>
                                 <button id="start-btn"
                                     class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
@@ -143,7 +147,7 @@
                                     <input type="text" id="new-player-name" placeholder="Introduce nombre (máx. 15)"
                                         class="flex-1 p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none placeholder-gray-400"
                                         maxlength="15"> <button id="add-player-btn"
-                                        class="shrink-0 bg-acento hover:bg-orange-600 text-white font-bold p-3 rounded-lg transition duration-150">
+                                        class="shrink-0 bg-[--color-acento] text-white font-bold p-3 rounded-lg transition duration-150">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                             xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -195,8 +199,10 @@
 
             </div>
             -->
-            <div id="game-board" class="grid grid-cols-4 gap-3 sm:gap-4 md:gap-5 w-full lg:flex-1 aspect-[16/9] ">
+            <div id="game-board"
+                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 w-full lg:flex-1">
             </div>
+        </div>
 
         </div>
     </main>
@@ -211,7 +217,7 @@
             </div>
 
             <button id="modal-close-btn"
-                class="w-full py-3 px-4 bg-acento hover:bg-[#c96200] text-gray-900 font-bold rounded-lg transition duration-150 text-lg">
+                class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
                 ¡Entendido! Ocultar y pasar.
             </button>
         </div>
@@ -226,6 +232,15 @@
                         <span class="-mr-1 inline-block">Da_CaRo</span> Labs
                     </span> Desarrollado con pasión.
                 </p>
+                <div class="flex space-x-6 items-center">
+                    <a href="https://github.com/da-caro" target="_blank"
+                        class="text-texto-gris hover-acento transition duration-300 text-sm">
+                        GitHub
+                    </a>
+                    <button id="clear-storage-btn" class="text-texto-gris hover-acento transition duration-300 text-sm">
+                        Borrar Variables
+                    </button>
+                </div>
             </div>
         </div>
     </footer>
@@ -242,12 +257,36 @@
         // INICIO: DOMContentLoaded
         // =========================================================
         document.addEventListener('DOMContentLoaded', () => {
+            // === LÓGICA DE CARGA DE PARTIDA ===
+            const impostorsSelect = document.getElementById('impostors-select');
+            const loadedState = Game.loadGameState();
+
+            if (loadedState) {
+                // Hay una partida activa (con roles), la restauramos.
+                Game.restorePartida(loadedState);
+            } else {
+                // 2. No hay partida activa. Intentamos cargar la lista de jugadores y la config.
+                Game.loadPlayerList();
+                Game.loadUsedWordsHistory();
+
+                // === CARGA DEL NÚMERO DE IMPOSTORES ===
+                const savedImpostors = Game.loadImpostorsCount();
+                if (savedImpostors !== null && impostorsSelect) {
+                    // Ya no usamos .toString(), ya que loadImpostorsCount devolverá el string guardado
+                    impostorsSelect.value = savedImpostors;
+                }
+
+                // 3. Mostrar siempre la pantalla de inicio para la configuración.
+                UI.mostrarBotonesInicio();
+                UI.ocultarTablero();
+            }
+
             //Controles del juego
             document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
 
             document.getElementById('start-btn').addEventListener('click', () => {
-                //const selectedPlayers = document.getElementById('players-select').value;
-                const selectedImpostors = document.getElementById('impostors-select').value;
+                // Usamos la variable impostorsSelect que ya está en el ámbito
+                const selectedImpostors = impostorsSelect.value;
                 Game.iniciarPartida(selectedImpostors);
             });
 
@@ -255,6 +294,14 @@
             const closeBtn = document.getElementById('modal-close-btn');
             if (closeBtn) {
                 closeBtn.addEventListener('click', UI.ocultarModal);
+            }
+
+            // === LISTENER: Guardar la selección cuando cambia ===
+            if (impostorsSelect) {
+                impostorsSelect.addEventListener('change', (e) => {
+                    // Llamamos a la función recién creada en game.js
+                    Game.saveImpostorsCount(e.target.value);
+                });
             }
 
             // === Control de Añadir Jugadores ===
@@ -279,6 +326,17 @@
             newPlayerInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     handleAddPlayer();
+                }
+            });
+
+            // Borrar las variables almacenadas
+            document.getElementById('clear-storage-btn').addEventListener('click', () => {
+                const confirmClear = confirm("ADVERTENCIA: ¿Estás seguro de que quieres borrar el estado de la partida y las palabras usadas guardadas localmente?");
+                if (confirmClear) {
+                    Game.limpiarTodasVariables(); // Llama a la nueva función de Storage
+                    // Retroalimentación al usuario y reinicio para cargar el estado limpio
+                    alert("¡Variables de juego borradas! La página se reiniciará para aplicar los cambios.");
+                    window.location.reload();
                 }
             });
         });
