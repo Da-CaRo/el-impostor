@@ -135,7 +135,7 @@ export function renderPlayerList(playersList, removePlayerCallback, editPlayerCa
 
         // Player Name (Editable)
         const nameSpan = document.createElement('span');
-        nameSpan.className = 'text-white font-agente text-base md:text-lg truncate flex-1 cursor-pointer hover:text-acento transition duration-150';
+        nameSpan.className = 'text-white text-base md:text-lg truncate flex-1 cursor-pointer hover:text-acento transition duration-150';
         nameSpan.textContent = player.name;
 
         // LÓGICA DE EDICIÓN AL HACER CLIC

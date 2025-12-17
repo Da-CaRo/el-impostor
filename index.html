@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
 
     <style>
         /* 1. DEFINICIÓN DE VARIABLES DE COLOR */
@@ -38,8 +38,8 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         }
 
-        .font-agente {
-            font-family: 'Orbitron', sans-serif;
+        .font-impostor{
+            font-family: 'Metal Mania', system-ui;
         }
 
         /* Sobrescribir las clases de Tailwind con las variables (para el color de acento) */
@@ -74,7 +74,7 @@
         <div class="max-w-7xl mx-auto flex justify-between items-center py-0">
             <div class="flex items-center space-x-2">
                 <img src="img/favicon.png" alt="Icono El Impostor" class="h-8 w-8">
-                <h1 class="text-3xl font-extrabold text-acento font-agente">
+                <h1 class="text-3xl font-extrabold text-acento font-impostor">
                     El Impostor
                 </h1>
             </div>
@@ -91,7 +91,7 @@
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 
                 <h1 class="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
-                    Bienvenido a <span class="font-agente text-acento">
+                    Bienvenido a <span class="font-impostor text-acento">
                         El Impostor
                     </span>
                 </h1>
@@ -137,8 +137,8 @@
                     <div
                         class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
                         <div>
-                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
-                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Jugadores</h3>
+                            <span class="text-acento text-4xl mb-3 block">📝</span>
+                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Registro</h3>
                             <p class="text-texto-gris text-base">
                             <div class="flex flex-col space-y-2 mb-4">
                                 <label for="new-player-name" class="text-texto-gris">Añadir Jugadores (mínimo
@@ -164,8 +164,8 @@
                     <div
                         class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
                         <div>
-                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
-                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Jugadores</h3>
+                            <span class="text-acento text-4xl mb-3 block">👥</span>
+                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Lista de Sospechosos</h3>
                             <p class="text-texto-gris text-base">
                             <div class="flex flex-col space-y-2 mb-4">
 
@@ -211,7 +211,7 @@
         <div id="modal-content"
             class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
 
-            <h2 id="modal-title" class="text-4xl font-agente font-extrabold mb-4 text-acento">ROL ASIGNADO</h2>
+            <h2 id="modal-title" class="text-4xl font-extrabold mb-4 text-acento">ROL ASIGNADO</h2>
 
             <div id="modal-body" class="mb-6">
             </div>

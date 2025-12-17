@@ -319,7 +319,7 @@ function generarTarjetas(playerList, roles, palabraSecreta) {
         card.className = "relative bg-tarjeta p-4 rounded-lg shadow-xl border border-gray-700 flex items-center justify-center cursor-pointer transition duration-300 transform hover:scale-[1.03] active:scale-[0.98] aspect-[16/9]";
         // Contenido de la tarjeta ahora es solo el número de jugador
         const content = document.createElement('div');
-        content.className = 'text-xl md:text-3xl font-bold font-agente text-acento truncate';
+        content.className = 'text-xl md:text-3xl font-bold text-acento truncate';
         content.textContent = player.name; // <-- USAMOS EL NOMBRE
 
         // =========================================================
@@ -456,16 +456,17 @@ function revelarRol(playerName, role, palabraSecreta) {
     let body = '';
 
     if (role === "PALABRA") {
-        title += ` - ¡TRIPULANTE!`;
+        //title += ` - ¡TRIPULANTE!`;
         body = `
             <p class="text-base text-texto-gris mb-3">Tu clave secreta es:</p>
-            <p class="text-5xl font-extrabold text-white font-agente mb-4">${palabraSecreta.palabra}</p>
+            <p class="text-5xl font-extrabold text-white mb-4">${palabraSecreta.palabra}</p>
             <p class="text-lg text-texto-gris">Da una pista relacionada con esta palabra sin ser demasiado obvio.</p>
         `;
     } else {
-        title += ` - ¡IMPOSTOR!`;
+        //title += ` - ¡IMPOSTOR!`;
         body = `
-            <p class="text-5xl font-extrabold text-red-400 font-agente mb-4">NO TIENES LA PALABRA</p>
+        
+            <p class="text-5xl font-extrabold text-white mb-4">Eres el <span class="text-[--color-acento] font-impostor">Impostor</span></p>
             <p class="text-lg text-texto-gris">Escucha las pistas de los demás atentamente. Debes inventar una pista creíble.</p>
         `;
     }
