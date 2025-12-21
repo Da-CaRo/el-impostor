@@ -19,9 +19,9 @@
             --color-fondo: #111827;
             --color-tarjeta: #1F2937;
 
-            --color-texto-claro: #F3F4F6;
-            --color-texto-gris: #9CA3AF;
-            --color-borde: #374151;
+            --color-texto: #F3F4F6;
+            --color-texto-tarjeta: #9CA3AF;
+            --color-borde-tarjeta: #374151;
         }
 
         /* 2. APLICACIÓN DE VARIABLES A LOS ESTILOS GLOBALMENTE */
@@ -29,13 +29,13 @@
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
             background-color: var(--color-fondo);
             /* Usando variable */
-            color: var(--color-texto-claro);
+            color: var(--color-texto);
             /* Usando variable */
         }
 
         /* Para usar una fuente monoespaciada en títulos específicos */
         .font-code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-family: 'Space Mono', ui-monospace, SFMono-Regular, monospace;
         }
 
         .font-impostor {
@@ -48,11 +48,7 @@
         }
 
         .hover-acento:hover {
-            color: var(--color-acento) !important;
-        }
-
-        .border-acento:hover {
-            border-color: var(--color-acento) !important;
+            color: var(--color-acento);
         }
 
         .bg-tarjeta {
@@ -60,11 +56,15 @@
         }
 
         .border-tarjeta {
-            border-color: var(--color-borde);
+            border-color: var(--color-borde-tarjeta);
         }
 
-        .text-texto-gris {
-            color: var(--color-texto-gris);
+        .border-tarjeta:hover {
+            border-color: var(--color-acento);
+        }
+
+        .text-tarjeta {
+            color: var(--color-texto-tarjeta);
         }
     </style>
 </head>
@@ -97,25 +97,26 @@
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 
                 <h1 class="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
-                    Bienvenido a <span class="font-impostor text-acento">
-                        El Impostor
-                    </span>
+                    La <span class="font-impostor text-acento">verdad</span> es un privilegio</span>
                 </h1>
-                <p class="text-xl text-texto-gris mb-12 max-w-2xl mx-auto">
-                    Selecciona el número de impostores, y añade los jugadores.
+                <p class="text-xl text-tarjeta mb-12 max-w-2xl mx-auto">
+                    Solo los elegidos conocen el secreto. Los demás deberán improvisar para sobrevivir. ¿Serás capaz de
+                    mantener la máscara hasta el final?
                 </p>
             </div>
 
             <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
                     <div
-                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
                         <div>
-                            <span class="text-acento text-4xl mb-3 block">⚙️</span>
-                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Opciones</h3>
-                            <p class="text-texto-gris text-base">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">⚙️</span>
+                                <h3 class="text-4xl font-bold">Opciones</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
+                                <label for="impostors-select" class="text-tarjeta">Elige el número de Impostores:</label>
 
                                 <select id="impostors-select"
                                     class="w-full p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-acento transition duration-150">
@@ -123,7 +124,6 @@
                                     <option value="2">2 Impostores</option>
                                     <option value="3">3 Impostores</option>
                                     <option value="4">4 Impostores</option>
-
                                     <option value="RANDOM_30">Impostores Random &lt;30%</option>
                                     <option value="RANDOM_50">Impostores Random &lt;50%</option>
                                     <option value="RANDOM_MAX">Impostores Random</option>
@@ -141,13 +141,15 @@
                     </div>
 
                     <div
-                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
                         <div>
-                            <span class="text-acento text-4xl mb-3 block">📝</span>
-                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Registro</h3>
-                            <p class="text-texto-gris text-base">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">📝</span>
+                                <h3 class="text-4xl font-bold">Registro</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <label for="new-player-name" class="text-texto-gris">Añadir Jugadores (mínimo
+                                <label for="new-player-name" class="text-tarjeta">Añadir Jugadores (mínimo
                                     3):</label>
                                 <div class="flex space-x-2">
                                     <input type="text" id="new-player-name" placeholder="Introduce nombre (máx. 15)"
@@ -162,22 +164,23 @@
                                     </button>
                                 </div>
 
-
                             </div>
                             </p>
                         </div>
                     </div>
                     <div
-                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-gray-700 border-acento hover-acento transition duration-300 h-full flex flex-col justify-between">
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
                         <div>
-                            <span class="text-acento text-4xl mb-3 block">👥</span>
-                            <h3 class="text-2xl font-bold mb-2 text-gray-100 font-code">Lista de Sospechosos</h3>
-                            <p class="text-texto-gris text-base">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">👥</span>
+                                <h3 class="text-4xl font-bold">Lista de Sospechosos</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
 
                                 <div id="players-list-container"
                                     class="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg min-h-[50px] max-h-[250px] overflow-y-auto">
-                                    <p id="empty-list-message" class="text-texto-gris italic text-sm">Aún no hay
+                                    <p id="empty-list-message" class="text-tarjeta italic text-sm">Aún no hay
                                         jugadores añadidos.</p>
                                     <ul id="players-list" class="space-y-2">
                                     </ul>
@@ -259,17 +262,22 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center text-center md:text-left">
 
-                <p class="text-xs text-texto-gris mb-4 md:mb-0">
+                <p class="text-xs text-tarjeta mb-4 md:mb-0">
                     &copy; <span id="currentYearFooter"></span> <span class="font-code">
-                        <span class="-mr-1 inline-block">Da_CaRo</span> Labs
-                    </span> Desarrollado con pasión.
+                        Da_CaRo
+                    </span>
                 </p>
+
                 <div class="flex space-x-6 items-center">
+                    <a href="https://da-caro.github.io/labs" target="_blank"
+                        class="text-tarjeta hover-acento transition duration-300 text-sm">
+                        Labs
+                    </a>
                     <a href="https://github.com/da-caro" target="_blank"
-                        class="text-texto-gris hover-acento transition duration-300 text-sm">
+                        class="text-tarjeta hover-acento transition duration-300 text-sm">
                         GitHub
                     </a>
-                    <button id="clear-storage-btn" class="text-texto-gris hover-acento transition duration-300 text-sm">
+                    <button id="clear-storage-btn" class="text-tarjeta hover-acento transition duration-300 text-sm">
                         Borrar Variables
                     </button>
                 </div>
