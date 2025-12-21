@@ -1,6 +1,7 @@
 /** 
  * Muestra el layout del juego.
  */
+
 export function mostrarTablero() {
     document.getElementById('start-buttons').classList.add('hidden');
     document.getElementById('game-layout').classList.remove('hidden');
@@ -8,6 +9,9 @@ export function mostrarTablero() {
 
     document.getElementById('reset-game-btn').classList.remove('hidden');
     document.getElementById('reset-game-btn').classList.add('flex');
+
+    document.getElementById('reveal-roles-btn').classList.remove('hidden');
+    document.getElementById('reveal-roles-btn').classList.add('flex');
 }
 
 /** 
@@ -19,7 +23,10 @@ export function ocultarTablero() {
     document.querySelector('footer').classList.remove('hidden')
 
     document.getElementById('reset-game-btn').classList.add('hidden');
-    document.getElementById('reset-game-btn').classList.remove('flex')
+    document.getElementById('reset-game-btn').classList.remove('flex');
+
+    document.getElementById('reveal-roles-btn').classList.add('hidden');
+    document.getElementById('reveal-roles-btn').classList.remove('flex');
 }
 
 /**
@@ -209,4 +216,26 @@ export function renderPlayerList(playersList, removePlayerCallback, editPlayerCa
         listItem.appendChild(deleteButton);
         listElement.appendChild(listItem);
     });
+}
+
+export function mostrarModalRoles(data) {
+    const modal = document.getElementById('roles-modal');
+    const impList = document.getElementById('impostors-list-reveal');
+    const civList = document.getElementById('civilians-list-reveal');
+
+    // Limpiar listas
+    impList.innerHTML = '';
+    civList.innerHTML = '';
+
+    // Llenar impostores
+    data.impostores.forEach(name => {
+        impList.innerHTML += `<li class="flex items-center"><span class="mr-2">💀</span> ${name}</li>`;
+    });
+
+    // Llenar inocentes
+    data.inocentes.forEach(name => {
+        civList.innerHTML += `<li class="flex items-center"><span class="mr-2">👤</span> ${name}</li>`;
+    });
+
+    modal.classList.remove('hidden');
 }
