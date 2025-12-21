@@ -242,7 +242,7 @@ export function editPlayerName(id, newName) {
  */
 function seleccionarPalabra() {
     // 1. Filtrar las palabras no usadas
-    const availableWords = PALABRAS_CLAVE_LISTA.filter(word => 
+    const availableWords = PALABRAS_CLAVE_LISTA.filter(word =>
         !usedWordsHistory.includes(word)
     );
 
@@ -250,19 +250,19 @@ function seleccionarPalabra() {
 
     if (availableWords.length === 0) {
         // 2. Si todas las palabras han sido usadas, resetear el historial
-        resetUsedWordsHistory(); 
-        
+        resetUsedWordsHistory();
+
         // Usar la lista completa nuevamente para la selección
         palabraSeleccionada = shuffleArray(PALABRAS_CLAVE_LISTA)[0];
     } else {
         // 3. Seleccionar una palabra aleatoria de las disponibles
         palabraSeleccionada = shuffleArray(availableWords)[0];
     }
-    
+
     // 4. Añadir la palabra seleccionada al historial y guardarlo
     usedWordsHistory.push(palabraSeleccionada);
-    saveUsedWordsHistory(); 
-    
+    saveUsedWordsHistory();
+
     return palabraSeleccionada;
 }
 
@@ -576,4 +576,15 @@ function calcularNumImpostores(impostorsOption) {
     // Generar el número aleatorio (entre minImpostors y upperLimit, ambos incluidos)
     // El rango ahora es: [1, totalPlayers]
     return Math.floor(Math.random() * (upperLimit - minImpostors + 1)) + minImpostors;
+}
+
+/**
+ * Obtiene la clasificación de jugadores según su rol actual.
+ * @returns {Object} { impostores: [], inocentes: [] }
+ */
+export function obtenerRevelacionRoles() {
+    return {
+        impostores: players.filter(p => p.role === "IMPOSTOR").map(p => p.name),
+        inocentes: players.filter(p => p.role === "PALABRA").map(p => p.name)
+    };
 }

@@ -38,7 +38,7 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         }
 
-        .font-impostor{
+        .font-impostor {
             font-family: 'Metal Mania', system-ui;
         }
 
@@ -78,12 +78,18 @@
                     El Impostor
                 </h1>
             </div>
+            <div class="flex space-x-3">
+                <button id="reveal-roles-btn"
+                    class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden">
+                    <span class="mr-2">📂</span> Roles
+                </button>
+                <button id="reset-game-btn"
+                    class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden"
+                    title="Acabar Partida">
+                    🛑 Salir
+                </button>
+            </div>
 
-            <button id="reset-game-btn"
-                class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-red-400 font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden"
-                title="Acabar Partida">
-                🛑 Salir
-            </button>
         </div>
     </header>
     <div id="start-buttons">
@@ -223,6 +229,32 @@
         </div>
     </div>
 
+    <div id="roles-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+        <div id="modal-content"
+            class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
+
+            <h2 id="modal-title" class="text-4xl font-extrabold mb-4 text-acento">Lista de Roles</h2>
+
+            <div class="mb-6">
+                <div>
+                    <h3 class="text-acento font-bold font-impostor border-b border-[--color-acento] mb-2">IMPOSTORES
+                    </h3>
+                    <ul id="impostors-list-reveal" class="text-white space-y-1"></ul>
+                </div>
+
+                <div>
+                    <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">TRIPULACIÓN</h3>
+                    <ul id="civilians-list-reveal" class="text-gray-300 space-y-1"></ul>
+                </div>
+            </div>
+
+            <button id="close-roles-modal"
+                class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
+                Cerrar
+            </button>
+        </div>
+    </div>
+
     <footer class="bg-gray-900 border-t border-gray-800 mt-16 py-4">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row justify-between items-center text-center md:text-left">
@@ -295,6 +327,20 @@
             if (closeBtn) {
                 closeBtn.addEventListener('click', UI.ocultarModal);
             }
+
+
+            // 1. Mostrar modal al pulsar Revelar
+            document.getElementById('reveal-roles-btn').addEventListener('click', () => {
+                if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
+                    const data = Game.obtenerRevelacionRoles();
+                    UI.mostrarModalRoles(data);
+                }
+            });
+
+            // 2. Cerrar modal
+            document.getElementById('close-roles-modal').addEventListener('click', () => {
+                document.getElementById('roles-modal').classList.add('hidden');
+            });
 
             // === LISTENER: Guardar la selección cuando cambia ===
             if (impostorsSelect) {
