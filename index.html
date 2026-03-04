@@ -80,6 +80,10 @@
                 </h1>
             </div>
             <div class="flex space-x-3">
+                <button id="random-start-btn"
+                    class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden">
+                    🎲
+                </button>
                 <button id="reveal-roles-btn"
                     class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden">
                     <span class="mr-2">📂</span> Roles
@@ -117,7 +121,8 @@
                             </div>
                             <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <label for="impostors-select" class="text-tarjeta">Elige el número de Impostores:</label>
+                                <label for="impostors-select" class="text-tarjeta">Elige el número de
+                                    Impostores:</label>
 
                                 <select id="impostors-select"
                                     class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
@@ -136,7 +141,8 @@
                             </div>
                             </p>
                         </div>
-                        <a href="https://da-caro.github.io/setup-and-play/el-impostor.html" target="_blank" class="block">
+                        <a href="https://da-caro.github.io/setup-and-play/el-impostor.html" target="_blank"
+                            class="block">
                             <span class="mt-5 inline-block text-sm font-medium text-acento hover:underline">Ver
                                 Instrucciones →</span></a>
                     </div>
@@ -191,6 +197,23 @@
                             </p>
                         </div>
                     </div>
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">✍️</span>
+                                <h3 class="text-4xl font-bold">Roles Especiales</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+                                <div class="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                                    <div class="grid grid-cols-2 gap-2" id="roles-checkboxes">
+                                    </div>
+                                </div>
+                            </div>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -218,19 +241,6 @@
     </main>
 
     <div id="role-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <div id="modal-content"
-            class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
-
-            <h2 id="modal-title" class="text-4xl font-extrabold mb-4 text-acento">ROL ASIGNADO</h2>
-
-            <div id="modal-body" class="mb-6">
-            </div>
-
-            <button id="modal-close-btn"
-                class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
-                ¡Entendido! Ocultar y pasar.
-            </button>
-        </div>
     </div>
 
     <div id="roles-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
@@ -250,11 +260,32 @@
                     <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">TRIPULACIÓN</h3>
                     <ul id="civilians-list-reveal" class="text-gray-300 space-y-1"></ul>
                 </div>
+
+                <div>
+                    <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">ESPECIALES</h3>
+                    <ul id="special-list-reveal" class="text-white space-y-1"></ul>
+                </div>
             </div>
 
             <button id="close-roles-modal"
                 class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
                 Cerrar
+            </button>
+        </div>
+    </div>
+
+
+    <div id="start-player-modal"
+        class="fixed inset-0 bg-black bg-opacity-80 hidden items-center justify-center z-50 p-4">
+        <div
+            class="bg-gray-800 border-2 border-acento rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl transform transition-all">
+            <div class="text-5xl mb-4">🎲</div>
+            <h2 class="text-xl font-bold text-gray-400 uppercase tracking-widest mb-2">El azar ha decidido</h2>
+            <div id="start-player-name" class="text-4xl font-black text-white my-6 break-words">
+            </div>
+            <button id="close-start-player-btn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">
+                ¡ENTENDIDO!
             </button>
         </div>
     </div>
@@ -292,7 +323,7 @@
         // Importar las funciones y el motor del juego
         import * as Game from './js/game.js';
         import * as UI from './js/ui.js';
-        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS } from './js/config.js';
+        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS, ROLE_GEMELO, ROLE_GEMELO_EXTRA } from './js/config.js';
 
         // =========================================================
         // INICIO: DOMContentLoaded
@@ -317,6 +348,12 @@
                     impostorsSelect.value = savedImpostors;
                 }
 
+                // Generar la interfaz de roles dinámicamente
+                UI.generarCheckboxesRoles();
+
+                const rolesGuardados = Game.cargarPreferenciasRoles();
+                UI.aplicarPreferenciasRolesUI(rolesGuardados);
+
                 // 3. Mostrar siempre la pantalla de inicio para la configuración.
                 UI.mostrarBotonesInicio();
                 UI.ocultarTablero();
@@ -325,10 +362,25 @@
             //Controles del juego
             document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
 
+            document.getElementById('random-start-btn').addEventListener('click', () => {
+                Game.elegirJugadorAleatorio();
+            });
+
+            document.getElementById('close-start-player-btn').addEventListener('click', () => {
+                const modal = document.getElementById('start-player-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
+
             document.getElementById('start-btn').addEventListener('click', () => {
                 // Usamos la variable impostorsSelect que ya está en el ámbito
                 const selectedImpostors = impostorsSelect.value;
-                Game.iniciarPartida(selectedImpostors);
+                const rolesSeleccionados = UI.getSelectedRoles();
+
+                // Cambia el gemelo extra por uno normal
+                const poolRoles = rolesSeleccionados.map(id => id === ROLE_GEMELO_EXTRA ? ROLE_GEMELO : id);
+
+                Game.iniciarPartida(selectedImpostors, poolRoles);
             });
 
             // Agrega el listener para el botón de cerrar modal (si usas game.js para esto)
@@ -356,6 +408,14 @@
                 impostorsSelect.addEventListener('change', (e) => {
                     // Llamamos a la función recién creada en game.js
                     Game.saveImpostorsCount(e.target.value);
+                });
+            }
+
+            const rolesContainer = document.getElementById('roles-checkboxes');
+            if (rolesContainer) {
+                rolesContainer.addEventListener('change', () => {
+                    const rolesActuales = UI.getSelectedRoles();
+                    Game.guardarPreferenciasRoles(rolesActuales);
                 });
             }
 
