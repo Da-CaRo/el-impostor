@@ -8,7 +8,19 @@ import {
     GAME_STATE_KEY,
     PLAYER_LIST_KEY,
     IMPOSTORS_KEY,
-    USED_WORDS_KEY
+    USED_WORDS_KEY,
+    CONFIGS_KEY,
+    ROLE_IMPOSTOR,
+    ROLE_TRIPULANTE,
+    ROLE_COMPLICE,
+    ROLE_DETECTIVE,
+    ROLE_PARANOICO,
+    ROLE_GEMELO,
+    ROLE_GLITCH,
+    ROLE_VIDENTE,
+    ROLE_POETA,
+    ROLE_DESPISTADO,
+    ROLES_DATA
 } from './config.js';
 
 
@@ -237,6 +249,23 @@ export function editPlayerName(id, newName) {
 }
 
 /**
+ * Guarda el array de roles seleccionados en localStorage.
+ * @param {Array<string>} roles - Lista de strings con los values de los roles.
+ */
+export function guardarPreferenciasRoles(roles) {
+    localStorage.setItem(CONFIGS_KEY, JSON.stringify(roles));
+}
+
+/**
+ * Recupera los roles guardados.
+ * @returns {Array<string>} Array de roles o un array vacío si no hay nada.
+ */
+export function cargarPreferenciasRoles() {
+    const saved = localStorage.getItem(CONFIGS_KEY);
+    return saved ? JSON.parse(saved) : [];
+}
+
+/**
  * Selecciona una palabra clave aleatoria de la lista disponible que no haya sido usada.
  * @returns {string} La palabra clave seleccionada.
  */
@@ -285,16 +314,30 @@ function shuffleArray(array) {
  * @param {number} numImpostors Número de impostores.
  * @returns {Array<string>} Array de roles mezclado.
  */
-function asignarRoles(totalPlayers, numImpostors) {
+function asignarRoles(totalPlayers, numImpostors, rolesPermitidos) {
     let roles = [];
-    // Asigna los roles de Impostor
+
+    // 1. Añadir Impostores
     for (let i = 0; i < numImpostors; i++) {
-        roles.push("IMPOSTOR");
+        roles.push(ROLE_IMPOSTOR);
     }
-    // Asigna los roles de Palabra (Tripulante)
-    const numPalabras = totalPlayers - numImpostors;
-    for (let i = 0; i < numPalabras; i++) {
-        roles.push("PALABRA");
+
+    // 2. Añadir los roles especiales seleccionados (si caben)
+    // Barajamos los permitidos por si hay más seleccionados que huecos
+    let especialesBarajados = shuffleArray([...rolesPermitidos]);
+
+    // El límite de especiales suele ser que quede al menos un tripulante normal
+    // O simplemente añadir todos los seleccionados si el número de jugadores lo permite
+    especialesBarajados.forEach(rol => {
+        if (roles.length < totalPlayers - 1) { // Dejamos al menos un hueco
+            roles.push(rol);
+        }
+    });
+
+    // 3. Rellenar el resto con Tripulantes normales
+    const totalActual = roles.length;
+    for (let i = 0; i < (totalPlayers - totalActual); i++) {
+        roles.push(ROLE_TRIPULANTE);
     }
 
     // Mezcla los roles para asignarlos aleatoriamente a los jugadores
@@ -327,7 +370,7 @@ function generarTarjetas(playerList, roles, palabraSecreta) {
         // =========================================================
         card.onclick = function () {
             // Pasamos el nombre del jugador a revelarRol
-            revelarRol(player.name, role, palabraSecreta);
+            revelarRol(player, palabraSecreta);
         };
         // =========================================================
 
@@ -387,7 +430,7 @@ export function finalizarPartida() {
  * Inicia la partida: asigna roles, elige palabra y guarda el estado.
  * @param {string|number} impostorsOption Valor seleccionado (e.g., "3", "RANDOM_50").
  */
-export function iniciarPartida(impostorsOption) {
+export function iniciarPartida(impostorsOption, rolesPermitidos = []) {
     if (players.length < MIN_PLAYERS) {
         alert(`Necesitas al menos ${MIN_PLAYERS} jugadores para empezar.`);
         return;
@@ -399,21 +442,26 @@ export function iniciarPartida(impostorsOption) {
     // Aseguramos que el resultado no sea mayor que jugadores.length
     const finalImpostors = Math.min(numImpostors, players.length);
 
-    // --- CORRECCIÓN APLICADA AQUÍ ---
     // 1. Obtener la palabra secreta por separado
     const palabraSecreta = seleccionarPalabra();
     console.log(palabraSecreta)
 
     // 2. Llamar a asignarRoles con el número total de jugadores y el número de impostores
     // La función asignarRoles SÓLO retorna el array de roles.
-    const roles = asignarRoles(players.length, finalImpostors);
+    const roles = asignarRoles(players.length, finalImpostors, rolesPermitidos);
     // --- FIN DE CORRECCIÓN ---
 
-    // Asignar los roles permanentemente a los jugadores 
-    players = players.map((player, index) => ({
-        ...player,
-        role: roles[index] // Ahora 'roles' es un array y no undefined
-    }));
+    // 2. Asignar esos roles a los objetos de los jugadores
+    players.forEach((player, index) => {
+        player.role = roles[index];
+        player.extraInfo = {}; // Inicializar siempre para evitar errores
+    });
+
+    // 3. LLAMADA CLAVE: Procesar la información cruzada
+    // Aquí es donde el Cómplice se entera de quién es el Impostor, etc.
+    procesarInformacionRoles(players);
+
+    console.log(players)
 
     generarTarjetas(players, roles, palabraSecreta);
 
@@ -428,7 +476,9 @@ export function iniciarPartida(impostorsOption) {
     const gameState = {
         palabra: palabraSecreta,
         jugadores: players.map(p => ({
-            [p.name]: p.role
+            name: p.name,
+            role: p.role,
+            extraInfo: p.extraInfo || {} // Guardamos la info extra o un objeto vacío
         }))
     };
 
@@ -446,32 +496,238 @@ export function iniciarPartida(impostorsOption) {
 // =========================================================
 
 /**
+ * Procesa la información técnica de los roles especiales.
+ * Modifica directamente los objetos dentro de la lista de jugadores proporcionada.
+ * @param {Array} listaJugadores - La lista de jugadores a procesar.
+ */
+export function procesarInformacionRoles(listaJugadores) {
+    // Pre-filtros para las selecciones aleatorias
+    const todosLosImpostores = listaJugadores.filter(p => p.role === ROLE_IMPOSTOR);
+    const todosLosCiviles = listaJugadores.filter(p => p.role === ROLE_TRIPULANTE);
+
+    listaJugadores.forEach(player => {
+        // Helper para obtener un elemento aleatorio de un array
+        const getRandom = (arr) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null;
+
+
+        let data = null;
+
+        switch (player.role) {
+            case ROLE_DETECTIVE:
+                // Conteo: { "IMPOSTOR": 1, "TRIPULANTE": 5, ... }
+                data = {};
+                listaJugadores.forEach(p => {
+                    data[p.role] = (data[p.role] || 0) + 1;
+                });
+                break;
+
+            case ROLE_COMPLICE:
+            case ROLE_VIDENTE:
+                // Objeto de un impostor aleatorio
+                data = getRandom(todosLosImpostores);
+                break;
+
+            case ROLE_PARANOICO:
+                // Array: [Impostor Aleatorio, Persona Aleatoria (no él mismo ni el impo elegido)]
+                // 1. Elegimos un impostor aleatorio
+                const impoAleatorio = getRandom(todosLosImpostores);
+
+                // 2. Elegimos una persona aleatoria (que no sea él mismo ni el impostor elegido)
+                const candidatosParaOtro = listaJugadores.filter(p =>
+                    p.id !== player.id &&
+                    p.id !== (impoAleatorio ? impoAleatorio.id : null)
+                );
+                const personaAleatoria = getRandom(candidatosParaOtro);
+
+                // 3. Creamos el array con ambos
+                let parejaSospechosa = [impoAleatorio, personaAleatoria];
+
+                // 4. --- EL TRUCO: Aleatorizar el orden del array ---
+                // Si el número aleatorio es menor a 0.5, los invertimos
+                if (Math.random() < 0.5) {
+                    parejaSospechosa = [personaAleatoria, impoAleatorio];
+                }
+
+                data = parejaSospechosa;
+                break;
+
+            case ROLE_GEMELO:
+                // 1. Buscamos a todos los gemelos en la lista
+                const todosLosGemelos = listaJugadores.filter(p => p.role === ROLE_GEMELO);
+
+                if (todosLosGemelos.length === 2) {
+                    // 2. Si hay exactamente dos, el dato extra es el OTRO gemelo
+                    const compa = todosLosGemelos.find(p => p.id !== player.id);
+                    // ✅ Guardamos nombre y rol para que revelarRol sepa si es Gemelo o Civil
+                    data = { name: compa.name, role: compa.role };
+                } else {
+                    // 3. Si solo hay uno (o configuración distinta), mantiene la lógica del civil
+                    data = getRandom(todosLosCiviles);
+                }
+                break;
+
+            case ROLE_POETA:
+                // Objeto con la letra
+                const letras = "BCDFLMPRSTV";
+                data = { letra: letras[Math.floor(Math.random() * letras.length)] };
+                break;
+        }
+
+        // Modificamos el objeto original directamente
+        player.extraInfo = data;
+    });
+}
+
+
+
+/**
  * Muestra el contenido del rol del jugador en un modal.
  * @param {number} playerIndex Índice del jugador (0, 1, 2...).
  * @param {string} role El rol asignado ("IMPOSTOR" o "PALABRA").
  * @param {string} palabraSecreta La palabra clave (si es tripulante).
  */
-function revelarRol(playerName, role, palabraSecreta) {
-    let title = `${playerName}`;
-    let body = '';
+/**
+ * Genera el contenido visual de la tarjeta de rol basándose en extraInfo
+ * y abre el modal de revelación.
+ */
+export function revelarRol(player, palabraSecreta) {
+    const contenedor = document.getElementById('role-modal');
+    if (!contenedor) return;
 
-    if (role === "PALABRA") {
-        //title += ` - ¡TRIPULANTE!`;
-        body = `
-            <p class="text-base text-texto-gris mb-3">Tu clave secreta es:</p>
-            <p class="text-5xl font-extrabold text-white mb-4">${palabraSecreta.palabra}</p>
-            <p class="text-lg text-texto-gris">Da una pista relacionada con esta palabra sin ser demasiado obvio.</p>
-        `;
-    } else {
-        //title += ` - ¡IMPOSTOR!`;
-        body = `
-        
-            <p class="text-5xl font-extrabold text-white mb-4">Eres el <span class="text-[--color-acento] font-impostor">Impostor</span></p>
-            <p class="text-lg text-texto-gris">Escucha las pistas de los demás atentamente. Debes inventar una pista creíble.</p>
-        `;
-    }
+    const data = player.extraInfo; // Información técnica procesada previamente
 
-    UI.mostrarModal(title, body);
+    // --- MEJORA: Obtener datos directamente de la configuración ---
+    const configRol = ROLES_DATA.find(r => r.id === player.role) || { icon: '❓', color: 'gray-500' };
+
+
+
+    // Mapeo de estilos de borde de Tailwind basados en el color de la config
+    // Nota: Como en config.js usas "red-500", aquí lo convertimos a "border-red-500"
+    const borderClass = `border-${configRol.color}`;
+    const bgClass = `bg-${configRol.color}`;
+    const textClass = `text-${configRol.color}`;
+
+
+    // --- FUNCIÓN HELPER PARA GENERAR EL BLOQUE DE HABILIDAD ---
+    const generarBloquePista = (titulo, contenido) => `
+        <div class="bg-black/30 p-2 rounded-lg border-l-4 ${borderClass} mb-3 text-center">
+            <p class="text-[10px] ${textClass} font-bold uppercase mb-1">${titulo}</p>
+            <p class="text-sm font-bold text-white uppercase italic">${contenido}</p>
+        </div>
+    `;
+    const divPalabra = `
+        <div class="${bgClass}/10 border ${borderClass}/30 rounded-xl p-4 mb-4 text-center">
+            <p class="text-[10px] ${textClass} font-bold uppercase mb-1">Palabra Secreta</p>
+            <p class="text-4xl font-black text-white uppercase tracking-widest">${palabraSecreta.palabra}</p>
+        </div>`
+
+    // 1. Detectamos si su acompañante es también un Gemelo para cambiar los textos
+    const esParejaReal = data && data.role === ROLE_GEMELO;
+
+    // Contenido específico de cada rol (la lógica interna)
+    const ROLES_STYLE = {
+        [ROLE_IMPOSTOR]: {
+            hint: "No conoces la palabra. Observa y miente para que no te descubran.",
+            html: `<div class="py-6 mb-4 text-center">
+                    <p class="text-4xl font-black tracking-tighter uppercase">
+                        <span class="text-white">ERES EL</span> <span class="text-red-600 font-impostor">IMPOSTOR</span>
+                    </p>
+                   </div>`
+        },
+        [ROLE_TRIPULANTE]: {
+            hint: "Describe la palabra sutilmente. No se lo pongas fácil al Impostor.",
+            html: `${divPalabra}`
+        },
+        [ROLE_COMPLICE]: {
+            hint: "Protege su identidad a toda costa. Si él cae, tú también.",
+            html: `${divPalabra}
+                   ${generarBloquePista("Lealtad al Impostor", (data?.name || 'DESCONOCIDO') + ' ES EL IMPOSTOR')}`
+        },
+        [ROLE_VIDENTE]: {
+            hint: "Has visto la verdad en las sombras. Guía a los demás sin que los traidores noten tu don.",
+            html: `<div class="py-6 mb-4 text-center">
+                    <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
+                   </div>
+                   ${generarBloquePista("Revelación Divina", (data?.name || 'ALGUIEN') + ' ES IMPOSTOR')}`
+        },
+        [ROLE_GLITCH]: {
+            hint: "El sistema ha fallado. Debes deducir la palabra completa antes de que te detecten.",
+            html: `<div class="py-6 mb-4 text-center">
+                    <p class="text-4xl font-black tracking-tighter uppercase">
+                        <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
+                    </p>
+                   </div>
+                   ${generarBloquePista(
+                        "Dato Corrupto", 
+                        (palabraSecreta.palabra.split('').map((char, i) => {
+                            if (char === ' ') return '&nbsp;&nbsp;'; // Mantiene el espacio visualmente claro
+                            return i % 2 === 0 ? char : "_";
+                        }
+                    ).join(' ')))}`
+        },
+        [ROLE_DESPISTADO]: {
+            hint: "Tienes una idea general del tema, pero la palabra exacta se te escapa.",
+            html: `<div class="py-6 mb-4 text-center">
+                    <p class="text-4xl font-black tracking-tighter uppercase">
+                        <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
+                    </p>
+                   </div>
+                   ${generarBloquePista("Pista Difusa", (palabraSecreta.categoria))}`
+        },
+        [ROLE_POETA]: {
+            hint: "Debes seguir esta instrucción al dar tus pistas o serás descubierto.",
+            html: `${divPalabra}
+                   ${generarBloquePista("Regla de Comunicación", (data?.letra ? `EMPIEZA CON "${data.letra}"` : "REGLA DESCONOCIDA"))}`
+        },
+        [ROLE_GEMELO]: {
+            // El hint cambia según si es un vínculo mutuo o no
+            hint: esParejaReal
+                ? "Os habéis reconocido. Ambos sabéis vuestros roles y sois de total confianza. Pero si uno muere el otro morirá también"
+                : "Es inocente, pero no sabe quién eres tú. Protégelo sin exponerte.",
+            html: `
+            ${divPalabra}
+            ${generarBloquePista(
+                esParejaReal ? "Alma Gemela" : "Vínculo Unilateral",
+                'Conoces A ' + (data?.name || "NADIE")
+            )}`
+        },
+        [ROLE_DETECTIVE]: {
+            hint: "Usa los números para detectar si alguien miente sobre su rol.",
+            html: `${divPalabra}
+                   ${generarBloquePista("Recuento de Objetivos", (data ? Object.entries(data).map(([r, c]) => `${c} ${r}`).join(" / ") : "ERROR"))}`
+        },
+        [ROLE_PARANOICO]: {
+            hint: "Uno de ellos es el impostor. El otro es un misterio.",
+            html: `${divPalabra}
+                   ${generarBloquePista("Sospecha Dividida", (Array.isArray(data) ? `${data[0]?.name} / ${data[1]?.name}` : "???"))}`
+        }
+    };
+
+    // Si el rol no tiene un HTML específico, usamos el de Tripulante por defecto
+    const rolContent = ROLES_STYLE[player.role] || ROLES_STYLE[ROLE_TRIPULANTE];
+
+    // Inyectar el HTML con la estructura de tarjeta del archivo test5.html
+    contenedor.innerHTML = `
+        <div class="rol-card bg-tarjeta rounded-2xl p-6 border-t-8 ${borderClass} shadow-2xl flex flex-col w-full max-w-[450px] mx-auto min-h-[400px]">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-4xl">${configRol.icon}</span>
+                <span class="text-2xl font-bold uppercase text-white">${player.name}</span>
+            </div>
+            <div class="flex-grow flex flex-col justify-center">
+                ${rolContent.html}
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed italic">${rolContent.hint}</p>
+            <div class="mt-2 shrink-0">
+                <button id="modal-close-btn" 
+                class="mt-2 w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
+                ¡Entendido! Ocultar y pasar.
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Abrir el modal usando la lógica de UI
+    UI.abrirModalRevelar();
 }
 
 /**
@@ -486,18 +742,18 @@ export function restorePartida(state) {
     let roles = [];
 
     // 2. Reconstruir el array de jugadores
-    state.jugadores.forEach(playerRoleObj => {
-        // playerRoleObj es de la forma { "Nombre": "ROL" }
-        const playerName = Object.keys(playerRoleObj)[0];
-        const role = playerRoleObj[playerName];
+    state.jugadores.forEach(playerObj => {
+        // playerObj tiene esta forma: { name: "...", role: "...", extraInfo: {...} }
 
-        // Creamos el objeto jugador completo (con ID y rol)
         players.push({
             id: currentId,
-            name: playerName,
-            role: role // Asignamos el rol cargado
+            name: playerObj.name,
+            role: playerObj.role,
+            extraInfo: playerObj.extraInfo || {} // Recuperamos la info especial (Mudo, Detective, etc.)
         });
-        roles.push(role); // Guardamos el rol para redibujar las tarjetas
+
+        roles.push(playerObj.role);
+
         currentId++;
     });
 
@@ -579,12 +835,43 @@ function calcularNumImpostores(impostorsOption) {
 }
 
 /**
- * Obtiene la clasificación de jugadores según su rol actual.
- * @returns {Object} { impostores: [], inocentes: [] }
+ * Obtiene la clasificación de jugadores según su rol actual para la pantalla final.
+ * @returns {Object} { impostores: [], especiales: [], inocentes: [] }
  */
 export function obtenerRevelacionRoles() {
+    // Función de ayuda para obtener icono/color de la config
+    const getRoleInfo = (roleId) => ROLES_DATA.find(r => r.id === roleId) || {};
+
     return {
-        impostores: players.filter(p => p.role === "IMPOSTOR").map(p => p.name),
-        inocentes: players.filter(p => p.role === "PALABRA").map(p => p.name)
+        impostores: players
+            .filter(p => p.role === ROLE_IMPOSTOR)
+            .map(p => ({
+                nombre: p.name,
+                ...getRoleInfo(ROLE_IMPOSTOR)
+            })),
+
+        especiales: players
+            .filter(p => p.role !== ROLE_IMPOSTOR && p.role !== ROLE_TRIPULANTE)
+            .map(p => ({
+                nombre: p.name,
+                rol: p.role,
+                ...getRoleInfo(p.role)
+            })),
+
+        inocentes: players
+            .filter(p => p.role === ROLE_TRIPULANTE)
+            .map(p => ({
+                nombre: p.name,
+                ...getRoleInfo(ROLE_TRIPULANTE)
+            }))
     };
+}
+
+export function elegirJugadorAleatorio() {
+    if (players.length === 0) return;
+
+    const indiceAleatorio = Math.floor(Math.random() * players.length);
+    const elegido = players[indiceAleatorio];
+
+    UI.mostrarElegido(elegido.name);
 }

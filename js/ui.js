@@ -1,3 +1,5 @@
+import { ROLES_DATA, ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_GEMELO, ROLE_GEMELO_EXTRA } from './config.js';
+
 /** 
  * Muestra el layout del juego.
  */
@@ -12,6 +14,9 @@ export function mostrarTablero() {
 
     document.getElementById('reveal-roles-btn').classList.remove('hidden');
     document.getElementById('reveal-roles-btn').classList.add('flex');
+
+    document.getElementById('random-start-btn').classList.remove('hidden');
+    document.getElementById('random-start-btn').classList.add('flex');
 }
 
 /** 
@@ -27,6 +32,9 @@ export function ocultarTablero() {
 
     document.getElementById('reveal-roles-btn').classList.add('hidden');
     document.getElementById('reveal-roles-btn').classList.remove('flex');
+
+    document.getElementById('random-start-btn').classList.add('hidden');
+    document.getElementById('random-start-btn').classList.remove('flex');
 }
 
 /**
@@ -52,7 +60,7 @@ let draggedPlayerId = null;
  * @param {string} title Título del modal.
  * @param {string} body Contenido HTML del rol.
  */
-export function mostrarModal(title, body) {
+export function mostrarModal(title, body, roleId) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = body;
     document.getElementById('role-modal').classList.remove('hidden');
@@ -62,6 +70,44 @@ export function mostrarModal(title, body) {
  */
 export function ocultarModal() {
     document.getElementById('role-modal').classList.add('hidden');
+}
+
+/**
+ * Hace visible el modal de revelación de rol.
+ * El contenido ya debe haber sido inyectado previamente por revelarRol.
+ */
+export function abrirModalRevelar() {
+    const modal = document.getElementById('role-modal');
+    if (!modal) return;
+
+    // Mostramos el modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Buscamos el botón que se acaba de inyectar en el DOM
+    const closeBtn = document.getElementById('modal-close-btn');
+    if (closeBtn) {
+        // Asignamos el evento de cierre (se dispara una sola vez)
+        closeBtn.addEventListener('click', () => {
+            cerrarModalRevelar();
+        }, { once: true });
+    }
+}
+
+/**
+ * Oculta el modal de revelación de rol.
+ */
+export function cerrarModalRevelar() {
+    const modal = document.getElementById('role-modal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+
+    // Opcional: Limpiar el contenido para evitar que se vea el rol anterior 
+    // brevemente la próxima vez que se abra.
+    const content = document.getElementById('modal-body-content');
+    if (content) content.innerHTML = '';
 }
 
 /**
@@ -219,23 +265,115 @@ export function renderPlayerList(playersList, removePlayerCallback, editPlayerCa
 }
 
 export function mostrarModalRoles(data) {
-    const modal = document.getElementById('roles-modal');
     const impList = document.getElementById('impostors-list-reveal');
+    const specList = document.getElementById('special-list-reveal');
     const civList = document.getElementById('civilians-list-reveal');
 
-    // Limpiar listas
-    impList.innerHTML = '';
-    civList.innerHTML = '';
+    const renderLista = (listaElement, elementos) => {
+        listaElement.innerHTML = '';
+        elementos.forEach(item => {
+            const li = document.createElement('li');
+            // 'item' ahora trae el .color desde game.js (vía ROLES_DATA)
+            const colorClase = item.color ? `text-${item.color}` : 'text-white';
 
-    // Llenar impostores
-    data.impostores.forEach(name => {
-        impList.innerHTML += `<li class="flex items-center"><span class="mr-2">💀</span> ${name}</li>`;
-    });
+            li.className = `flex items-center gap-2 ${colorClase} font-medium`;
+            const texto = item.rol ? `${item.nombre} (${item.rol})` : item.nombre;
+            li.innerHTML = `<span>${item.icon}</span> ${texto}`;
+            listaElement.appendChild(li);
+        });
+    };
 
-    // Llenar inocentes
-    data.inocentes.forEach(name => {
-        civList.innerHTML += `<li class="flex items-center"><span class="mr-2">👤</span> ${name}</li>`;
-    });
+    // Llamada simplificada:
+    renderLista(impList, data.impostores);
+    renderLista(specList, data.especiales);
+    renderLista(civList, data.inocentes);
+
+    document.getElementById('roles-modal').classList.replace('hidden', 'flex');
+}
+
+// Función para obtener los roles seleccionados por el usuario
+export function getSelectedRoles() {
+    const checkboxes = document.querySelectorAll('.role-check:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+export function mostrarElegido(nombre) {
+    const modal = document.getElementById('start-player-modal');
+    const nameDisplay = document.getElementById('start-player-name');
+
+    nameDisplay.textContent = nombre.toUpperCase();
 
     modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+/**
+ * Marca los checkboxes de roles según la lista proporcionada.
+ * @param {Array<string>} rolesList - Lista de roles a marcar.
+ */
+export function aplicarPreferenciasRolesUI(rolesList) {
+    const checkboxes = document.querySelectorAll('.role-check');
+    checkboxes.forEach(cb => {
+        cb.checked = rolesList.includes(cb.value);
+    });
+
+    // IMPORTANTE: Tras marcar los checks, forzar la validación de los gemelos
+    const checkPrin = document.getElementById(`check-${ROLE_GEMELO}`);
+    if (checkPrin) {
+        // Esto dispara manualmente la lógica de habilitar/deshabilitar el 2º gemelo
+        checkPrin.dispatchEvent(new Event('change'));
+    }
+}
+
+export function generarCheckboxesRoles() {
+    const container = document.getElementById('roles-checkboxes');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const rolesEspeciales = ROLES_DATA.filter(rol =>
+        rol.id !== ROLE_IMPOSTOR && rol.id !== ROLE_TRIPULANTE
+    );
+
+    rolesEspeciales.forEach(rol => {
+        const label = document.createElement('label');
+        // Usamos la constante ROLE_GEMELO_EXTRA de config.js
+        //const isExtra = rol.id === ROLE_GEMELO_EXTRA;
+        const isExtra = false;
+
+        label.className = `flex items-center space-x-2 text-sm cursor-pointer hover:text-white transition-colors ${isExtra ? 'ml-6 border-l border-gray-700 pl-2' : ''}`;
+
+        label.innerHTML = `
+            <input type="checkbox" value="${rol.id}" id="check-${rol.id}" class="role-check accent-red-500 w-4 h-4">
+            <span class="flex items-center gap-1">
+                <span>${rol.icon}</span>
+                <span class="${isExtra ? 'text-[11px] text-gray-400' : ''}">${rol.name}</span>
+            </span>
+        `;
+
+        container.appendChild(label);
+    });
+
+    // --- LÓGICA DE VALIDACIÓN CORREGIDA ---
+    // Usamos el ID dinámico basado en el valor de la constante
+    const checkPrincipal = document.getElementById(`check-${ROLE_GEMELO}`);
+    const checkExtra = document.getElementById(`check-${ROLE_GEMELO_EXTRA}`);
+
+    if (checkPrincipal && checkExtra) {
+        const sincronizarGemelos = () => {
+            if (!checkPrincipal.checked) {
+                checkExtra.checked = false;
+                checkExtra.disabled = true;
+                checkExtra.parentElement.classList.add('opacity-40', 'pointer-events-none');
+            } else {
+                checkExtra.disabled = false;
+                checkExtra.parentElement.classList.remove('opacity-40', 'pointer-events-none');
+            }
+        };
+
+        checkPrincipal.addEventListener('change', sincronizarGemelos);
+
+        // Ejecución inmediata por si hay datos cargados previamente
+        sincronizarGemelos();
+    }
 }
