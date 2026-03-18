@@ -312,11 +312,26 @@ function seleccionarPalabra() {
  * @returns {Array<any>} El array mezclado.
  */
 function shuffleArray(array) {
+    /*
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+    */
+    // 1. Creamos una copia del array de roles para no mutar el original
+    let rolesBarajados = [...array];
+
+    // 2. Algoritmo Fisher-Yates
+    for (let i = rolesBarajados.length - 1; i > 0; i--) {
+        // Elegimos un índice aleatorio entre 0 e i
+        const j = Math.floor(Math.random() * (i + 1));
+        // Intercambiamos los elementos
+        [rolesBarajados[i], rolesBarajados[j]] = [rolesBarajados[j], rolesBarajados[i]];
+    }
+
+    // 3. Ahora usa 'rolesBarajados' para devolver los resultados
+    return rolesBarajados;
 }
 
 /**
@@ -373,7 +388,7 @@ export function asignarRoles(totalPlayers, numImpostors, rolesPermitidos) {
         // Barajamos los permitidos por si hay más seleccionados que huecos
         let especialesBarajados = shuffleArray([...rolesPermitidos]);
         especialesBarajados.forEach(id => {
-            if (roles.length < totalPlayers- 1) {
+            if (roles.length < totalPlayers - 1) {
                 roles.push(id);
             }
         });
