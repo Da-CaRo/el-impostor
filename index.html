@@ -379,56 +379,45 @@
         import * as UI from './js/ui.js';
         import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO } from './js/config.js';
 
-        // =========================================================
-        // INICIO: DOMContentLoaded
-        // =========================================================
         document.addEventListener('DOMContentLoaded', () => {
-            // === LÓGICA DE CARGA DE PARTIDA ===
+            // =========================================================
+            // LÓGICA DE CARGA DE PARTIDA
+            // =========================================================
             const impostorsSelect = document.getElementById('impostors-select');
             const loadedState = Game.loadGameState();
 
+            UI.actualizarEstiloBotones(localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR);
+            UI.aplicarTemaVisual();
+
             if (loadedState) {
-                // Hay una partida activa (con roles), la restauramos.
+                // Si hay una partida activa, la restauramos.
                 Game.restorePartida(loadedState);
             } else {
-                // 2. No hay partida activa. Intentamos cargar la lista de jugadores y la config.
+                // Si no hay partida activa. Cargar la lista de jugadores y las palabras usadas.
                 Game.loadPlayerList();
                 Game.loadUsedWordsHistory();
 
-                // Generar la interfaz de roles dinámicamente
-                UI.actualizarSelectorCantidad();
+                // Generar la interfaz de roles y cantidad de impostores
                 UI.generarCheckboxesRoles();
+                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
 
-                // === CARGA DEL NÚMERO DE IMPOSTORES ===
+                UI.actualizarSelectorCantidad();
                 const savedImpostors = Game.loadImpostorsCount();
                 if (savedImpostors !== null && impostorsSelect) {
-                    // Ya no usamos .toString(), ya que loadImpostorsCount devolverá el string guardado
                     impostorsSelect.value = savedImpostors;
                 }
 
-                const rolesGuardados = Game.cargarPreferenciasRoles();
-                UI.aplicarPreferenciasRolesUI(rolesGuardados);
-
-                // 3. Mostrar siempre la pantalla de inicio para la configuración.
+                // Mostrar siempre la pantalla de inicio.
                 UI.mostrarBotonesInicio();
                 UI.ocultarTablero();
             }
 
-            //Controles del juego
-            document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
+            // =========================================================
+            // Controles del juego
+            // =========================================================
 
-            document.getElementById('random-start-btn').addEventListener('click', () => {
-                Game.elegirJugadorAleatorio();
-            });
-
-            document.getElementById('close-start-player-btn').addEventListener('click', () => {
-                const modal = document.getElementById('start-player-modal');
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            });
-
+            // Iniciar Partida
             document.getElementById('start-btn').addEventListener('click', () => {
-                // Usamos la variable impostorsSelect que ya está en el ámbito
                 const selectedImpostors = impostorsSelect.value;
                 const rolesSeleccionados = UI.getSelectedRoles();
 
@@ -438,14 +427,10 @@
                 Game.iniciarPartida(selectedImpostors, poolRoles);
             });
 
-            // Agrega el listener para el botón de cerrar modal (si usas game.js para esto)
-            const closeBtn = document.getElementById('modal-close-btn');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', UI.ocultarModal);
-            }
+            // Finalizar Partida
+            document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
 
-
-            // 1. Mostrar modal al pulsar Revelar
+            // Abrir menú "Revelar Roles"
             document.getElementById('reveal-roles-btn').addEventListener('click', () => {
                 const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
                 if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
@@ -461,85 +446,67 @@
                 }
             });
 
-            // 2. Cerrar modal
+            // Cerrar menú "Revelar Roles"
             document.getElementById('close-roles-modal').addEventListener('click', () => {
                 document.getElementById('roles-modal').classList.add('hidden');
             });
 
-            // === LISTENER: Guardar la selección cuando cambia ===
-            if (impostorsSelect) {
-                impostorsSelect.addEventListener('change', (e) => {
-                    // Llamamos a la función recién creada en game.js
-                    Game.saveImpostorsCount(e.target.value);
-                });
+            // Abrir menú "Seleccionar Jugador Aleatorio"
+            document.getElementById('random-start-btn').addEventListener('click', () => {
+                Game.elegirJugadorAleatorio();
+            });
+
+            // Cerrar menú "Seleccionar Jugador Aleatorio"
+            document.getElementById('close-start-player-btn').addEventListener('click', () => {
+                const modal = document.getElementById('start-player-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
+
+            // Cerrar vista del role
+            const closeBtn = document.getElementById('modal-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', UI.ocultarModal);
             }
 
-            const rolesContainer = document.getElementById('roles-checkboxes');
-            if (rolesContainer) {
-                rolesContainer.addEventListener('change', () => {
-                    const rolesActuales = UI.getSelectedRoles();
-                    Game.guardarPreferenciasRoles(rolesActuales);
-                });
-            }
-
-            // === Control de Modo de Juego ===
-            // Dentro del <script> de index.html
-            const btnImpostor = document.getElementById('btn-mode-impostor');
-            const btnWolf = document.getElementById('btn-mode-wolf');
-
-            // Función para actualizar estilos visuales de los botones
-            function actualizarEstiloBotones(modo) {
-                if (modo === MODE_IMPOSTOR) {
-                    btnImpostor.classList.add('bg-red-600', 'text-white');
-                    btnImpostor.classList.remove('text-gray-400');
-                    btnWolf.classList.remove('bg-indigo-600', 'text-white');
-                    btnWolf.classList.add('text-gray-400');
-
-                } else {
-                    btnWolf.classList.add('bg-indigo-600', 'text-white');
-                    btnWolf.classList.remove('text-gray-400');
-                    btnImpostor.classList.remove('bg-red-600', 'text-white');
-                    btnImpostor.classList.add('text-gray-400');
-                }
-            }
-
-            btnImpostor.addEventListener('click', () => {
+            // Botones de modo de juego
+            document.getElementById('btn-mode-impostor').addEventListener('click', () => {
                 localStorage.setItem(GAME_MODE_KEY, MODE_IMPOSTOR);
-                actualizarEstiloBotones(MODE_IMPOSTOR);
+                UI.actualizarEstiloBotones(MODE_IMPOSTOR);
                 UI.actualizarSelectorCantidad();
                 UI.aplicarTemaVisual();
-                UI.generarCheckboxesRoles(); // Regenera la lista sin recargar toda la página
+                UI.generarCheckboxesRoles();
                 UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
             });
-
-            btnWolf.addEventListener('click', () => {
+            document.getElementById('btn-mode-wolf').addEventListener('click', () => {
                 localStorage.setItem(GAME_MODE_KEY, MODE_LOBO);
-                actualizarEstiloBotones(MODE_LOBO);
+                UI.actualizarEstiloBotones(MODE_LOBO);
                 UI.actualizarSelectorCantidad();
                 UI.aplicarTemaVisual();
-                UI.generarCheckboxesRoles(); // Regenera la lista
+                UI.generarCheckboxesRoles();
                 UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
             });
 
-            // Al cargar la página por primera vez:
-            actualizarEstiloBotones(localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR);
-            UI.aplicarTemaVisual();
+            // === Guargar las opciones cuando cambian ===
+            impostorsSelect.addEventListener('change', (e) => {
+                Game.saveImpostorsCount(e.target.value);
+            });
 
+            document.getElementById('roles-checkboxes').addEventListener('change', () => {
+                Game.guardarPreferenciasRoles(UI.getSelectedRoles());
+            });
 
             // === Control de Añadir Jugadores ===
             const newPlayerInput = document.getElementById('new-player-name');
             const addPlayerBtn = document.getElementById('add-player-btn');
-
-            // Asignar la longitud máxima del nombre desde la configuración
-            newPlayerInput.maxLength = MAX_NAME_LENGTH; // <-- NUEVO
+            newPlayerInput.maxLength = MAX_NAME_LENGTH;
 
             function handleAddPlayer() {
                 const name = newPlayerInput.value;
-                if (Game.addPlayer(name)) { // Llama a la lógica en game.js
-                    newPlayerInput.value = ''; // Limpia el input si se añadió con éxito
+                if (Game.addPlayer(name)) {
+                    newPlayerInput.value = '';
                     newPlayerInput.focus();
                 } else {
-                    // Actualizamos el mensaje de alerta con las constantes
                     alert(`El nombre debe tener al menos ${MIN_NAME_LENGTH} caracter, no puede estar repetido y el máximo es de ${MAX_PLAYERS} jugadores.`);
                 }
             }
@@ -551,16 +518,16 @@
                 }
             });
 
-            // Borrar las variables almacenadas
+            // === Borrar las variables almacenadas ===
             document.getElementById('clear-storage-btn').addEventListener('click', () => {
                 const confirmClear = confirm("ADVERTENCIA: ¿Estás seguro de que quieres borrar el estado de la partida y las palabras usadas guardadas localmente?");
                 if (confirmClear) {
-                    Game.limpiarTodasVariables(); // Llama a la nueva función de Storage
-                    // Retroalimentación al usuario y reinicio para cargar el estado limpio
+                    Game.limpiarTodasVariables();
                     alert("¡Variables de juego borradas! La página se reiniciará para aplicar los cambios.");
                     window.location.reload();
                 }
             });
+
         });
         // Función global para manejar los clics y guardar automáticamente
         window.toggleEstadoPanel = function (nombre, tipo) {
@@ -584,7 +551,6 @@
             }
             else if (tipo === 'pocionVida' || tipo === 'pocionMuerte') {
                 estado[tipo] = !estado[tipo];
-                // Buscamos el botón específico de la poción (el 1º o 2º del contenedor de pociones)
                 const idx = tipo === 'pocionVida' ? 0 : 1;
                 row.querySelectorAll('.flex.gap-0\\.5 button')[idx].classList.toggle('opacity-30', estado[tipo]);
             }
