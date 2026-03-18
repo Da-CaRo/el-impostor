@@ -37,7 +37,7 @@ export const ROLE_DESPISTADO = "DESPISTADO"
 export const ROLE_VIDENTE = "VIDENTE";
 export const ROLE_GEMELO = "GEMELO";
 export const ROLE_DETECTIVE = "DETECTIVE";
-export const ROLE_GEMELO_EXTRA = "ROLE_GEMELO_EXTRA";
+export const ROLE_GEMELO_EXTRA = "GEMELO_EXTRA";
 
 export const ROLES_DATA = [
     { id: ROLE_IMPOSTOR, name: "Impostor", icon: "💀", color: "red-500" },
