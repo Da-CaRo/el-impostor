@@ -10,6 +10,9 @@ import {
     IMPOSTORS_KEY,
     USED_WORDS_KEY,
     CONFIGS_KEY,
+    GAME_MODE_KEY,
+    PANEL_PLAYER_KEY,
+    KEY_START,
     ROLE_IMPOSTOR,
     ROLE_TRIPULANTE,
     ROLE_COMPLICE,
@@ -20,9 +23,17 @@ import {
     ROLE_VIDENTE,
     ROLE_POETA,
     ROLE_DESPISTADO,
-    ROLES_DATA
-} from './config.js';
+    ROLES_DATA,
+    ROLE_NARRADOR,
+    ROLE_LOBO,
+    ROLE_LOBO_BLANCO,
+    ROLE_ALDEANO,
+    ROLES_LOBO_DATA,
+    MODE_IMPOSTOR,
+    MODE_LOBO,
+    ROLE_LOBO_CACHORRO,
 
+} from './config.js';
 
 
 // === VARIABLES DE ESTADO (ASUMIDAS DE PASOS ANTERIORES) ===
@@ -314,31 +325,64 @@ function shuffleArray(array) {
  * @param {number} numImpostors Número de impostores.
  * @returns {Array<string>} Array de roles mezclado.
  */
-function asignarRoles(totalPlayers, numImpostors, rolesPermitidos) {
+export function asignarRoles(totalPlayers, numImpostors, rolesPermitidos) {
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
     let roles = [];
 
-    // 1. Añadir Impostores
-    for (let i = 0; i < numImpostors; i++) {
-        roles.push(ROLE_IMPOSTOR);
-    }
+    if (mode === MODE_IMPOSTOR) {
+        // --- TU LÓGICA ACTUAL DE IMPOSTOR ---
 
-    // 2. Añadir los roles especiales seleccionados (si caben)
-    // Barajamos los permitidos por si hay más seleccionados que huecos
-    let especialesBarajados = shuffleArray([...rolesPermitidos]);
-
-    // El límite de especiales suele ser que quede al menos un tripulante normal
-    // O simplemente añadir todos los seleccionados si el número de jugadores lo permite
-    especialesBarajados.forEach(rol => {
-        if (roles.length < totalPlayers - 1) { // Dejamos al menos un hueco
-            roles.push(rol);
+        // 1. Añadir Impostores
+        for (let i = 0; i < numImpostors; i++) {
+            roles.push(ROLE_IMPOSTOR);
         }
-    });
 
-    // 3. Rellenar el resto con Tripulantes normales
-    const totalActual = roles.length;
-    for (let i = 0; i < (totalPlayers - totalActual); i++) {
-        roles.push(ROLE_TRIPULANTE);
+        // 2. Añadir los roles especiales seleccionados (si caben)
+        // Barajamos los permitidos por si hay más seleccionados que huecos
+        let especialesBarajados = shuffleArray([...rolesPermitidos]);
+
+        // El límite de especiales suele ser que quede al menos un tripulante normal
+        // O simplemente añadir todos los seleccionados si el número de jugadores lo permite
+        especialesBarajados.forEach(rol => {
+            if (roles.length < totalPlayers - 1) { // Dejamos al menos un hueco
+                roles.push(rol);
+            }
+        });
+
+        // 3. Rellenar el resto con Tripulantes normales
+        const totalActual = roles.length;
+        for (let i = 0; i < (totalPlayers - totalActual); i++) {
+            roles.push(ROLE_TRIPULANTE);
+        }
+
+    } else {
+        // --- LÓGICA CASTRO NEGRO ---
+        // 1. GESTIÓN PRIORITARIA DEL NARRADOR
+        if (rolesPermitidos.includes(ROLE_NARRADOR)) {
+            roles.push(ROLE_NARRADOR);
+            rolesPermitidos = rolesPermitidos.filter(r => r !== ROLE_NARRADOR);
+        }
+
+        // 2. CREAR EL POOL PARA LOS DEMÁS (ahora quedan menos jugadores)
+        // 2.1. Añadimos los Lobos
+        for (let i = 0; i < numImpostors; i++) {
+            roles.push(ROLE_LOBO);
+        }
+
+        // 2.2. Añadimos los roles especiales seleccionados (Pitonisa, Bruja, etc.)
+        // Barajamos los permitidos por si hay más seleccionados que huecos
+        let especialesBarajados = shuffleArray([...rolesPermitidos]);
+        especialesBarajados.forEach(id => {
+            if (roles.length < totalPlayers- 1) {
+                roles.push(id);
+            }
+        });
+        // 2.3. El resto son Aldeanos
+        while (roles.length < totalPlayers) {
+            roles.push(ROLE_ALDEANO);
+        }
     }
+
 
     // Mezcla los roles para asignarlos aleatoriamente a los jugadores
     return shuffleArray(roles);
@@ -411,6 +455,14 @@ export function clearGameState() {
 
     // Limpiamos el estado de partida (roles, palabra secreta)
     localStorage.removeItem(GAME_STATE_KEY);
+
+    // Buscamos todas las claves que empiecen por nuestro prefijo y las borramos
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(PANEL_PLAYER_KEY)) {
+            localStorage.removeItem(key);
+        }
+    });
+
     console.log("Estado de la partida limpiado.");
 }
 
@@ -442,9 +494,15 @@ export function iniciarPartida(impostorsOption, rolesPermitidos = []) {
     // Aseguramos que el resultado no sea mayor que jugadores.length
     const finalImpostors = Math.min(numImpostors, players.length);
 
-    // 1. Obtener la palabra secreta por separado
-    const palabraSecreta = seleccionarPalabra();
-    console.log(palabraSecreta)
+    // 1. Detectar el modo actual
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+
+    // 2. Solo seleccionar palabra si NO es modo Lobo
+    let palabraSecreta = '-';
+    if (mode !== MODE_LOBO) {
+        palabraSecreta = seleccionarPalabra();
+        console.log(palabraSecreta)
+    }
 
     // 2. Llamar a asignarRoles con el número total de jugadores y el número de impostores
     // La función asignarRoles SÓLO retorna el array de roles.
@@ -571,6 +629,16 @@ export function procesarInformacionRoles(listaJugadores) {
                 const letras = "BCDFLMPRSTV";
                 data = { letra: letras[Math.floor(Math.random() * letras.length)] };
                 break;
+
+            case ROLE_LOBO:
+                const otrosLobos = listaJugadores
+                    .filter(p => p.role === ROLE_LOBO && p.id !== player.id)
+                    .map(p => p.name);
+
+                player.extraInfo = otrosLobos.length > 0
+                    ? { compañeros: otrosLobos.join(", ") }
+                    : { compañeros: "Estás solo en esta cacería..." };
+                break;
         }
 
         // Modificamos el objeto original directamente
@@ -591,123 +659,161 @@ export function procesarInformacionRoles(listaJugadores) {
  * y abre el modal de revelación.
  */
 export function revelarRol(player, palabraSecreta) {
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+
     const contenedor = document.getElementById('role-modal');
     if (!contenedor) return;
 
-    const data = player.extraInfo; // Información técnica procesada previamente
+    if (mode === MODE_LOBO) {
+        // --- DISEÑO PARA CASTRO NEGRO (Sin palabra) ---
+        let infoExtraHTML = '';
 
-    // --- MEJORA: Obtener datos directamente de la configuración ---
-    const configRol = ROLES_DATA.find(r => r.id === player.role) || { icon: '❓', color: 'gray-500' };
+        // --- MEJORA: Obtener datos directamente de la configuración ---
+        const configRol = ROLES_LOBO_DATA.find(r => r.id === player.role) || { icon: '❓', color: 'gray-500' };
 
+        // Mapeo de estilos de borde de Tailwind basados en el color de la config
+        // Nota: Como en config.js usas "red-500", aquí lo convertimos a "border-red-500"
+        const borderClass = `border-${configRol.color}`;
+        const bgClass = `bg-${configRol.color}`;
+        const textClass = `text-${configRol.color}`;
 
+        contenedor.innerHTML = `
+        <div class="rol-card bg-tarjeta rounded-2xl p-6 border-t-8 ${borderClass} shadow-2xl flex flex-col w-full max-w-[450px] mx-auto min-h-[400px]">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-4xl">${configRol.icon}</span>
+                <span class="text-2xl font-bold uppercase text-white">${player.name}</span>
+            </div>
+            <div class="flex-grow flex flex-col justify-center">        
+                <div class="${bgClass}/10 border ${borderClass}/30 rounded-xl p-4 mb-4 text-center">
+                    <p class="text-[10px] ${textClass} font-bold uppercase mb-1">Rol</p>
+                    <p class="text-4xl font-black text-white uppercase">${configRol.name}</p>
+                </div>
+                <div class="bg-black/30 p-2 rounded-lg border-l-4 ${borderClass} mb-3 text-center">
+                    <p class="text-sm font-semibold text-white italic">${configRol.description || "Tu destino está escrito en las estrellas de Castronegro."}</p>
+                </div>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed italic"></p>
+            <div class="mt-2 shrink-0">
+                <button id="modal-close-btn" 
+                class="mt-2 w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
+                ¡Entendido! Ocultar y pasar.
+                </button>
+            </div>
+        </div>
+    `;
 
-    // Mapeo de estilos de borde de Tailwind basados en el color de la config
-    // Nota: Como en config.js usas "red-500", aquí lo convertimos a "border-red-500"
-    const borderClass = `border-${configRol.color}`;
-    const bgClass = `bg-${configRol.color}`;
-    const textClass = `text-${configRol.color}`;
+    } else {
+        const data = player.extraInfo; // Información técnica procesada previamente
 
+        // --- MEJORA: Obtener datos directamente de la configuración ---
+        const configRol = ROLES_DATA.find(r => r.id === player.role) || { icon: '❓', color: 'gray-500' };
 
-    // --- FUNCIÓN HELPER PARA GENERAR EL BLOQUE DE HABILIDAD ---
-    const generarBloquePista = (titulo, contenido) => `
+        // Mapeo de estilos de borde de Tailwind basados en el color de la config
+        // Nota: Como en config.js usas "red-500", aquí lo convertimos a "border-red-500"
+        const borderClass = `border-${configRol.color}`;
+        const bgClass = `bg-${configRol.color}`;
+        const textClass = `text-${configRol.color}`;
+
+        // --- FUNCIÓN HELPER PARA GENERAR EL BLOQUE DE HABILIDAD ---
+        const generarBloquePista = (titulo, contenido) => `
         <div class="bg-black/30 p-2 rounded-lg border-l-4 ${borderClass} mb-3 text-center">
             <p class="text-[10px] ${textClass} font-bold uppercase mb-1">${titulo}</p>
             <p class="text-sm font-bold text-white uppercase italic">${contenido}</p>
         </div>
     `;
-    const divPalabra = `
+        const divPalabra = `
         <div class="${bgClass}/10 border ${borderClass}/30 rounded-xl p-4 mb-4 text-center">
             <p class="text-[10px] ${textClass} font-bold uppercase mb-1">Palabra Secreta</p>
-            <p class="text-4xl font-black text-white uppercase tracking-widest">${palabraSecreta.palabra}</p>
+            <p class="text-4xl font-black text-white uppercase tracking-wide">${palabraSecreta.palabra}</p>
         </div>`
 
-    // 1. Detectamos si su acompañante es también un Gemelo para cambiar los textos
-    const esParejaReal = data && data.role === ROLE_GEMELO;
+        // 1. Detectamos si su acompañante es también un Gemelo para cambiar los textos
+        const esParejaReal = data && data.role === ROLE_GEMELO;
 
-    // Contenido específico de cada rol (la lógica interna)
-    const ROLES_STYLE = {
-        [ROLE_IMPOSTOR]: {
-            hint: "No conoces la palabra. Observa y miente para que no te descubran.",
-            html: `<div class="py-6 mb-4 text-center">
+        // Contenido específico de cada rol (la lógica interna)
+        const ROLES_STYLE = {
+            [ROLE_IMPOSTOR]: {
+                hint: "No conoces la palabra. Observa y miente para que no te descubran.",
+                html: `<div class="py-6 mb-4 text-center">
                     <p class="text-4xl font-black tracking-tighter uppercase">
                         <span class="text-white">ERES EL</span> <span class="text-red-600 font-impostor">IMPOSTOR</span>
                     </p>
                    </div>`
-        },
-        [ROLE_TRIPULANTE]: {
-            hint: "Describe la palabra sutilmente. No se lo pongas fácil al Impostor.",
-            html: `${divPalabra}`
-        },
-        [ROLE_COMPLICE]: {
-            hint: "Protege su identidad a toda costa. Si él cae, tú también.",
-            html: `${divPalabra}
-                   ${generarBloquePista("Lealtad al Impostor", (data?.name || 'DESCONOCIDO') + ' ES EL IMPOSTOR')}`
-        },
-        [ROLE_VIDENTE]: {
-            hint: "Has visto la verdad en las sombras. Guía a los demás sin que los traidores noten tu don.",
-            html: `<div class="py-6 mb-4 text-center">
+            },
+            [ROLE_TRIPULANTE]: {
+                hint: "Describe la palabra sutilmente. No se lo pongas fácil al Impostor.",
+                html: `${divPalabra}`
+            },
+            [ROLE_COMPLICE]: {
+                hint: "Protege su identidad a toda costa. Si él cae, tú también.",
+                html: `${divPalabra}
+                   ${generarBloquePista("Lealtad al Impostor", (data?.name || 'DESCONOCIDO') + ' EL IMPOSTOR')}`
+            },
+            [ROLE_VIDENTE]: {
+                hint: "Has visto la verdad en las sombras. Guía a los demás sin que los traidores noten tu don.",
+                html: `<div class="py-6 mb-4 text-center">
                     <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
                    </div>
                    ${generarBloquePista("Revelación Divina", (data?.name || 'ALGUIEN') + ' ES IMPOSTOR')}`
-        },
-        [ROLE_GLITCH]: {
-            hint: "El sistema ha fallado. Debes deducir la palabra completa antes de que te detecten.",
-            html: `<div class="py-6 mb-4 text-center">
+            },
+            [ROLE_GLITCH]: {
+                hint: "El sistema ha fallado. Debes deducir la palabra completa antes de que te detecten.",
+                html: `<div class="py-6 mb-4 text-center">
                     <p class="text-4xl font-black tracking-tighter uppercase">
                         <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
                     </p>
                    </div>
                    ${generarBloquePista(
-                        "Dato Corrupto", 
-                        (palabraSecreta.palabra.split('').map((char, i) => {
-                            if (char === ' ') return '&nbsp;&nbsp;'; // Mantiene el espacio visualmente claro
-                            return i % 2 === 0 ? char : "_";
-                        }
+                    "Dato Corrupto",
+                    (palabraSecreta.palabra.split('').map((char, i) => {
+                        if (char === ' ') return '&nbsp;&nbsp;'; // Mantiene el espacio visualmente claro
+                        return i % 2 === 0 ? char : "_";
+                    }
                     ).join(' ')))}`
-        },
-        [ROLE_DESPISTADO]: {
-            hint: "Tienes una idea general del tema, pero la palabra exacta se te escapa.",
-            html: `<div class="py-6 mb-4 text-center">
+            },
+            [ROLE_DESPISTADO]: {
+                hint: "Tienes una idea general del tema, pero la palabra exacta se te escapa.",
+                html: `<div class="py-6 mb-4 text-center">
                     <p class="text-4xl font-black tracking-tighter uppercase">
                         <p class="text-4xl font-black tracking-tighter uppercase">No conoces la palabra</p>
                     </p>
                    </div>
                    ${generarBloquePista("Pista Difusa", (palabraSecreta.categoria))}`
-        },
-        [ROLE_POETA]: {
-            hint: "Debes seguir esta instrucción al dar tus pistas o serás descubierto.",
-            html: `${divPalabra}
+            },
+            [ROLE_POETA]: {
+                hint: "Debes seguir esta instrucción al dar tus pistas o serás descubierto.",
+                html: `${divPalabra}
                    ${generarBloquePista("Regla de Comunicación", (data?.letra ? `EMPIEZA CON "${data.letra}"` : "REGLA DESCONOCIDA"))}`
-        },
-        [ROLE_GEMELO]: {
-            // El hint cambia según si es un vínculo mutuo o no
-            hint: esParejaReal
-                ? "Os habéis reconocido. Ambos sabéis vuestros roles y sois de total confianza. Pero si uno muere el otro morirá también"
-                : "Es inocente, pero no sabe quién eres tú. Protégelo sin exponerte.",
-            html: `
+            },
+            [ROLE_GEMELO]: {
+                // El hint cambia según si es un vínculo mutuo o no
+                hint: esParejaReal
+                    ? "Os habéis reconocido. Ambos sabéis vuestros roles y sois de total confianza. Pero si uno muere el otro morirá también"
+                    : "Es inocente, pero no sabe quién eres tú. Protégelo sin exponerte.",
+                html: `
             ${divPalabra}
             ${generarBloquePista(
-                esParejaReal ? "Alma Gemela" : "Vínculo Unilateral",
-                'Conoces A ' + (data?.name || "NADIE")
-            )}`
-        },
-        [ROLE_DETECTIVE]: {
-            hint: "Usa los números para detectar si alguien miente sobre su rol.",
-            html: `${divPalabra}
+                    esParejaReal ? "Alma Gemela" : "Vínculo Unilateral",
+                    'Conoces A ' + (data?.name || "NADIE")
+                )}`
+            },
+            [ROLE_DETECTIVE]: {
+                hint: "Usa los números para detectar si alguien miente sobre su rol.",
+                html: `${divPalabra}
                    ${generarBloquePista("Recuento de Objetivos", (data ? Object.entries(data).map(([r, c]) => `${c} ${r}`).join(" / ") : "ERROR"))}`
-        },
-        [ROLE_PARANOICO]: {
-            hint: "Uno de ellos es el impostor. El otro es un misterio.",
-            html: `${divPalabra}
+            },
+            [ROLE_PARANOICO]: {
+                hint: "Uno de ellos es el impostor. El otro es un misterio.",
+                html: `${divPalabra}
                    ${generarBloquePista("Sospecha Dividida", (Array.isArray(data) ? `${data[0]?.name} / ${data[1]?.name}` : "???"))}`
-        }
-    };
+            }
+        };
 
-    // Si el rol no tiene un HTML específico, usamos el de Tripulante por defecto
-    const rolContent = ROLES_STYLE[player.role] || ROLES_STYLE[ROLE_TRIPULANTE];
+        // Si el rol no tiene un HTML específico, usamos el de Tripulante por defecto
+        const rolContent = ROLES_STYLE[player.role] || ROLES_STYLE[ROLE_TRIPULANTE];
 
-    // Inyectar el HTML con la estructura de tarjeta del archivo test5.html
-    contenedor.innerHTML = `
+        // Inyectar el HTML con la estructura de tarjeta del archivo test5.html
+        contenedor.innerHTML = `
         <div class="rol-card bg-tarjeta rounded-2xl p-6 border-t-8 ${borderClass} shadow-2xl flex flex-col w-full max-w-[450px] mx-auto min-h-[400px]">
             <div class="flex items-center gap-3 mb-6">
                 <span class="text-4xl">${configRol.icon}</span>
@@ -725,6 +831,7 @@ export function revelarRol(player, palabraSecreta) {
             </div>
         </div>
     `;
+    }
 
     // Abrir el modal usando la lógica de UI
     UI.abrirModalRevelar();
@@ -775,7 +882,11 @@ export function restorePartida(state) {
  * Elimina todas las variables de estado del juego y palabras usadas del almacenamiento local.
  */
 export function limpiarTodasVariables() {
-    localStorage.clear()
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(KEY_START)) {
+            localStorage.removeItem(key);
+        }
+    });
     console.log("✅ Todas las variables de juego han sido borradas");
 }
 
@@ -864,6 +975,25 @@ export function obtenerRevelacionRoles() {
                 nombre: p.name,
                 ...getRoleInfo(ROLE_TRIPULANTE)
             }))
+    };
+}
+
+export function obtenerRevelacionLobo() {
+    // IMPORTANTE: Asegúrate de importar ROLES_LOBO_DATA en game.js
+    const getRoleInfo = (roleId) => ROLES_LOBO_DATA.find(r => r.id === roleId) || {};
+
+    return {
+        lobos: players
+            .filter(p => p.role === ROLE_LOBO || p.role === ROLE_LOBO_BLANCO || p.role === ROLE_LOBO_CACHORRO)
+            .map(p => ({ nombre: p.name, ...getRoleInfo(p.role) })),
+
+        especiales: players
+            .filter(p => p.role !== ROLE_NARRADOR && p.role !== ROLE_ALDEANO && p.role !== ROLE_LOBO && p.role !== ROLE_LOBO_BLANCO && p.role !== ROLE_LOBO_CACHORRO)
+            .map(p => ({ nombre: p.name, ...getRoleInfo(p.role) })),
+
+        inocentes: players
+            .filter(p => p.role === ROLE_ALDEANO)
+            .map(p => ({ nombre: p.name, ...getRoleInfo(p.role) }))
     };
 }
 

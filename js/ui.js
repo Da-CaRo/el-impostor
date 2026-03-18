@@ -1,10 +1,13 @@
-import { ROLES_DATA, ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_GEMELO, ROLE_GEMELO_EXTRA } from './config.js';
-
+import { ROLES_DATA, ROLES_LOBO_DATA, ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_LOBO, ROLE_ALDEANO, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, OPCIONES_ENEMIGOS, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO } from './config.js';
 /** 
  * Muestra el layout del juego.
  */
 
 export function mostrarTablero() {
+    // 1. Detectar el modo actual
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+    const revealBtn = document.getElementById('reveal-roles-btn');
+
     document.getElementById('start-buttons').classList.add('hidden');
     document.getElementById('game-layout').classList.remove('hidden');
     document.querySelector('footer').classList.add('hidden')
@@ -12,11 +15,28 @@ export function mostrarTablero() {
     document.getElementById('reset-game-btn').classList.remove('hidden');
     document.getElementById('reset-game-btn').classList.add('flex');
 
-    document.getElementById('reveal-roles-btn').classList.remove('hidden');
-    document.getElementById('reveal-roles-btn').classList.add('flex');
+    revealBtn.classList.remove('hidden');
+    revealBtn.classList.add('flex');
 
-    document.getElementById('random-start-btn').classList.remove('hidden');
-    document.getElementById('random-start-btn').classList.add('flex');
+    // 2. Lógica condicional para el botón de inicio aleatorio y el resumen de roles
+    const randomBtn = document.getElementById('random-start-btn');
+    if (mode === MODE_LOBO) {
+        // Si es modo Lobo, nos aseguramos de que esté oculto
+        randomBtn.classList.add('hidden');
+        randomBtn.classList.remove('flex');
+
+        revealBtn.innerHTML = `
+                <span class="mr-2">🏘️</span> Estado De Aldea
+            `;
+    } else {
+        // Si es modo Impostor, lo mostramos como siempre
+        randomBtn.classList.remove('hidden');
+        randomBtn.classList.add('flex');
+
+        revealBtn.innerHTML = `
+                <span class="mr-2">📂</span> Ver Roles
+            `;
+    }
 }
 
 /** 
@@ -291,6 +311,93 @@ export function mostrarModalRoles(data) {
     document.getElementById('roles-modal').classList.replace('hidden', 'flex');
 }
 
+export function mostrarGuiaNarrador(datosAgrupados) {
+    const modal = document.getElementById('role-modal'); // Asegúrate que sea el ID correcto
+    const contenedor = document.getElementById('modal-content');
+
+    if (!modal || !contenedor) return;
+
+    // Generamos las secciones de forma dinámica
+    const renderSeccion = (titulo, jugadores, colorClase) => {
+        if (!jugadores || jugadores.length === 0) return '';
+        return `
+            <div class="mb-4">
+                <h3 class="${colorClase} font-bold border-b border-gray-600 mb-2">${titulo}</h3>
+                <div class="grid grid-cols-2 gap-1">
+                    ${jugadores.map(p => generarTarjetaDetallada(p)).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    contenedor.innerHTML = `
+        <div class="w-full max-w-lg mx-auto">
+            <h2 class="text-xl font-black text-white uppercase text-center mb-4">Panel del Narrador</h2>
+            <div class="max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+                ${renderSeccion('ROLES ESPECIALES', datosAgrupados.especiales, 'text-gray-400')}
+                ${renderSeccion('HOMBRES LOBO', datosAgrupados.lobos, 'text-indigo-400')}
+                ${renderSeccion('ALDEANOS', datosAgrupados.inocentes, 'text-amber-400')}
+            </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-gray-900 border border-indigo-500/30 rounded-lg">
+                <p class="text-[9px] text-gray-400 uppercase font-black text-center mb-2">Orden de la Noche</p>
+                <div class="grid grid-cols-2 gap-2 text-[10px] text-gray-200">
+                    <span class="bg-gray-800 p-1 rounded">1. 💘 Cupido (Solo Primera Noche)</span>
+                    <span class="bg-gray-800 p-1 rounded">2. 💘 Amantes (Solo Primera Noche)</span>
+                    <span class="bg-gray-800 p-1 rounded">3. 🛡️ Protector</span>
+                    <span class="bg-gray-800 p-1 rounded">4. 👁️ Pitonisa</span>
+                    <span class="bg-gray-800 p-1 rounded">5. 🦊 Zorro</span>
+                    <span class="bg-gray-800 p-1 rounded">6. 🐦‍⬛ Cuervo</span>
+                    <span class="bg-gray-800 p-1 rounded">7. 🐺 Lobos</span>
+                    <span class="bg-gray-800 p-1 rounded">8. 🧪 Bruja</span>
+                </div>
+            </div>
+    `;
+
+    document.getElementById('roles-modal').classList.replace('hidden', 'flex');
+}
+
+
+function generarTarjetaDetallada(p) {
+    // Recuperamos el estado previo del localStorage para este jugador
+    const estadoGuardado = JSON.parse(localStorage.getItem(`${PANEL_PLAYER_KEY}${p.nombre}`)) || {
+        muerto: false,
+        enamorado: false,
+        pocionVida: false,
+        pocionMuerte: false
+    };
+
+    return `
+        <div class="flex items-center justify-between bg-gray-800/60 rounded border-b border-gray-700 player-row ${estadoGuardado.muerto ? 'opacity-30' : ''}" id="row-${p.nombre}" data-nombre="${p.nombre}">
+            <div class="flex items-center overflow-hidden">
+                <span class="text-lg">${p.icon}</span>
+                <span class="text-xs font-bold text-slate-400 truncate pl-2 ">${p.nombre}</span>
+            </div>
+            
+            <div class="flex items-center gap-1">
+                ${p.id === 'BRUJA' ? `
+                    <div class="flex gap-0.5 border-r border-gray-600 pr-1">
+                        <button onclick="toggleEstadoPanel('${p.nombre}', 'pocionVida')" class="bg-blue-900/30 rounded ${estadoGuardado.pocionVida ? 'opacity-30' : ''}">🧪</button>
+                        <button onclick="toggleEstadoPanel('${p.nombre}', 'pocionMuerte')" class="bg-red-900/30 rounded  ${estadoGuardado.pocionMuerte ? 'opacity-30' : ''}">☠️</button>
+                    </div>
+                ` : ''}
+                <button onclick="toggleEstadoPanel('${p.nombre}', 'muerto')" class="hover:bg-red-900 rounded">💀</button>
+                
+                
+                <button 
+    onclick="toggleEstadoPanel('${p.nombre}', 'enamorado')" 
+    class="pr-1 text-gray-500 hover:text-pink-400 transition-colors ${estadoGuardado.enamorado ? 'text-pink-500' : 'text-gray-500'} btn-corazon">
+    <span>${estadoGuardado.enamorado ? '💘' : '🤍'}</span>
+</button>
+                
+                
+            </div>
+        </div>
+    `;
+}
+
+
 // Función para obtener los roles seleccionados por el usuario
 export function getSelectedRoles() {
     const checkboxes = document.querySelectorAll('.role-check:checked');
@@ -331,20 +438,25 @@ export function generarCheckboxesRoles() {
 
     container.innerHTML = '';
 
-    const rolesEspeciales = ROLES_DATA.filter(rol =>
-        rol.id !== ROLE_IMPOSTOR && rol.id !== ROLE_TRIPULANTE
-    );
+    // 1. Detectar el modo de juego
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+
+    // 2. Elegir qué lista de roles mostrar
+    const currentRolesData = (mode === MODE_LOBO) ? ROLES_LOBO_DATA : ROLES_DATA;
+
+    // 3. Definir qué roles NO mostrar en la lista de selección (los básicos)
+    const excludeIds = [ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_LOBO, ROLE_ALDEANO];
+
+    const rolesEspeciales = currentRolesData.filter(rol => !excludeIds.includes(rol.id));
 
     rolesEspeciales.forEach(rol => {
         const label = document.createElement('label');
-        // Usamos la constante ROLE_GEMELO_EXTRA de config.js
-        //const isExtra = rol.id === ROLE_GEMELO_EXTRA;
-        const isExtra = false;
+        const isExtra = rol.id === ROLE_GEMELO_EXTRA;
 
         label.className = `flex items-center space-x-2 text-sm cursor-pointer hover:text-white transition-colors ${isExtra ? 'ml-6 border-l border-gray-700 pl-2' : ''}`;
 
         label.innerHTML = `
-            <input type="checkbox" value="${rol.id}" id="check-${rol.id}" class="role-check accent-red-500 w-4 h-4">
+            <input type="checkbox" value="${rol.id}" id="check-${rol.id}" class="role-check accent-acento w-4 h-4">
             <span class="flex items-center gap-1">
                 <span>${rol.icon}</span>
                 <span class="${isExtra ? 'text-[11px] text-gray-400' : ''}">${rol.name}</span>
@@ -354,26 +466,64 @@ export function generarCheckboxesRoles() {
         container.appendChild(label);
     });
 
-    // --- LÓGICA DE VALIDACIÓN CORREGIDA ---
-    // Usamos el ID dinámico basado en el valor de la constante
-    const checkPrincipal = document.getElementById(`check-${ROLE_GEMELO}`);
-    const checkExtra = document.getElementById(`check-${ROLE_GEMELO_EXTRA}`);
+    // Solo activamos la lógica de gemelos si estamos en modo Impostor
+    if (mode === MODE_IMPOSTOR) {
+        const checkPrincipal = document.getElementById(`check-${ROLE_GEMELO}`);
+        const checkExtra = document.getElementById(`check-${ROLE_GEMELO_EXTRA}`);
 
-    if (checkPrincipal && checkExtra) {
-        const sincronizarGemelos = () => {
-            if (!checkPrincipal.checked) {
-                checkExtra.checked = false;
-                checkExtra.disabled = true;
-                checkExtra.parentElement.classList.add('opacity-40', 'pointer-events-none');
-            } else {
-                checkExtra.disabled = false;
-                checkExtra.parentElement.classList.remove('opacity-40', 'pointer-events-none');
-            }
-        };
-
-        checkPrincipal.addEventListener('change', sincronizarGemelos);
-
-        // Ejecución inmediata por si hay datos cargados previamente
-        sincronizarGemelos();
+        if (checkPrincipal && checkExtra) {
+            const sincronizarGemelos = () => {
+                if (!checkPrincipal.checked) {
+                    checkExtra.checked = false;
+                    checkExtra.disabled = true;
+                    checkExtra.parentElement.classList.add('opacity-40', 'pointer-events-none');
+                } else {
+                    checkExtra.disabled = false;
+                    checkExtra.parentElement.classList.remove('opacity-40', 'pointer-events-none');
+                }
+            };
+            checkPrincipal.addEventListener('change', sincronizarGemelos);
+            sincronizarGemelos();
+        }
     }
 }
+
+export function actualizarSelectorCantidad() {
+    const selector = document.getElementById('impostors-select'); // Ajusta al ID real de tu HTML
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+    const opciones = OPCIONES_ENEMIGOS[mode] || OPCIONES_ENEMIGOS.IMPOSTOR;
+
+    selector.innerHTML = ''; // Limpiamos opciones actuales
+
+    opciones.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.value;
+        el.textContent = opt.label;
+        selector.appendChild(el);
+    });
+}
+
+export function aplicarTemaVisual() {
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+    const body = document.body;
+    const heroTitle = document.getElementById('heroTitle'); // Selecciona tu H1
+    const heroSubtitle = document.getElementById('heroSubtitle'); // Selecciona tu párrafo
+    const labelNumImpostores = document.getElementById('label-num-impostores');
+    const linkGuia = document.getElementById('linkGuia');
+
+    if (mode === MODE_LOBO) {
+        body.classList.add('tema-lobo');
+        heroTitle.innerHTML = `El miedo tiene <span class="font-impostor text-acento">garras</span>`;
+        heroSubtitle.innerHTML = "Al caer el sol, los vecinos se vuelven presas. Encuentra a la bestia antes de que el último aliento se apague.";
+        labelNumImpostores.innerHTML = "Número de Lobos";
+        linkGuia.href = `https://da-caro.github.io/setup-and-play/el-impostor-castronegro.html`;
+
+    } else {
+        body.classList.remove('tema-lobo');
+        heroTitle.innerHTML = `La <span class="font-impostor text-acento">verdad</span> es un privilegio`;
+        heroSubtitle.innerHTML = "Solo los elegidos conocen el secreto. Los demás deberán improvisar para sobrevivir. ¿Serás capaz de mantener la máscara hasta el final?";
+        labelNumImpostores.innerHTML = "Número de Impostores";
+        linkGuia.href = `https://da-caro.github.io/setup-and-play/el-impostor.html`;
+    }
+}
+
