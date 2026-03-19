@@ -17,6 +17,7 @@
         /* 1. DEFINICIÓN DE VARIABLES DE COLOR */
         :root {
             --color-acento: #FF3B30;
+            --color-acento-lobo: #4F46E5;
             --color-fondo: #111827;
             --color-tarjeta: #1F2937;
 
@@ -28,10 +29,12 @@
         /* 2. APLICACIÓN DE VARIABLES A LOS ESTILOS GLOBALMENTE */
         body {
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-            background-color: var(--color-fondo);
-            /* Usando variable */
+            /*background-color: var(--color-fondo);*/
+            background: radial-gradient(circle at center, #1a0a0a 0%, #050505 100%);
+            background-attachment: fixed;
             color: var(--color-texto);
-            /* Usando variable */
+            /* Transición suave entre modos */
+            transition: background 0.8s ease;
         }
 
         /* Para usar una fuente monoespaciada en títulos específicos */
@@ -43,9 +46,25 @@
             font-family: 'Metal Mania', system-ui;
         }
 
+        .text-title {
+            color: var(--color-acento);
+        }
+
         /* Sobrescribir las clases de Tailwind con las variables (para el color de acento) */
         .text-acento {
             color: var(--color-acento);
+        }
+
+        .bg-acento {
+            background-color: var(--color-acento);
+        }
+
+        .border-acento {
+            border-color: var(--color-acento);
+        }
+
+        .accent-acento {
+            accent-color: var(--color-acento);
         }
 
         .hover-acento:hover {
@@ -67,6 +86,54 @@
         .text-tarjeta {
             color: var(--color-texto-tarjeta);
         }
+
+        /* Para que el panel del narrador se vea bien */
+        .player-row.grayscale {
+            filter: grayscale(1);
+            border-color: transparent;
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 10px;
+        }
+
+
+
+        /* --- TEMAS DINÁMICOS --- */
+
+        /* Por defecto (Impostor) usamos rojos, pero si el body tiene .tema-lobo: */
+        body.tema-lobo {
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            background-attachment: fixed;
+        }
+
+        /* Sobrescribir botones principales cuando estamos en modo lobo */
+        body.tema-lobo .text-acento {
+            color: var(--color-acento-lobo);
+        }
+
+        body.tema-lobo .border-tarjeta:hover {
+            border-color: var(--color-acento-lobo);
+        }
+
+        body.tema-lobo .bg-acento {
+            background-color: var(--color-acento-lobo);
+        }
+
+        body.tema-lobo .border-acento {
+            border-color: var(--color-acento-lobo);
+        }
+
+        body.tema-lobo .accent-acento {
+            accent-color: var(--color-acento-lobo);
+        }
     </style>
 </head>
 
@@ -75,7 +142,7 @@
         <div class="max-w-7xl mx-auto flex justify-between items-center py-0">
             <div class="flex items-center space-x-2">
                 <img src="img/favicon.png" alt="Icono El Impostor" class="h-8 w-8">
-                <h1 class="text-3xl font-extrabold text-acento font-impostor">
+                <h1 class="text-3xl font-extrabold text-title font-impostor">
                     El Impostor
                 </h1>
             </div>
@@ -86,7 +153,6 @@
                 </button>
                 <button id="reveal-roles-btn"
                     class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden">
-                    <span class="mr-2">📂</span> Roles
                 </button>
                 <button id="reset-game-btn"
                     class="py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 items-center justify-center text-base disabled:opacity-50 hidden"
@@ -101,10 +167,10 @@
         <div class="py-8 md:py-12">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
 
-                <h1 class="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
-                    La <span class="font-impostor text-acento">verdad</span> es un privilegio</span>
+                <h1 id="heroTitle" class="text-5xl md:text-6xl font-extrabold mb-4 leading-tight">
+
                 </h1>
-                <p class="text-xl text-tarjeta mb-12 max-w-2xl mx-auto">
+                <p id="heroSubtitle" class="text-xl text-tarjeta mb-12 max-w-2xl mx-auto">
                     Solo los elegidos conocen el secreto. Los demás deberán improvisar para sobrevivir. ¿Serás capaz de
                     mantener la máscara hasta el final?
                 </p>
@@ -119,20 +185,30 @@
                                 <span class="text-acento text-4xl block">⚙️</span>
                                 <h3 class="text-4xl font-bold">Opciones</h3>
                             </div>
+
+                            <div class="mb-6">
+                                <label
+                                    class="text-xs font-bold uppercase tracking-widest text-gray-500 block mb-2 text-center">
+                                    Modo de Juego</label>
+                                <div class="flex justify-center gap-2">
+                                    <button id="btn-mode-impostor"
+                                        class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold text-sm transition-all border-2 border-red-500">
+                                        EL IMPOSTOR
+                                    </button>
+                                    <button id="btn-mode-wolf"
+                                        class="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 font-bold text-sm transition-all border-2 border-indigo-500">
+                                        CASTRONEGRO
+                                    </button>
+                                </div>
+                            </div>
+
                             <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <label for="impostors-select" class="text-tarjeta">Elige el número de
-                                    Impostores:</label>
+                                <label id="label-num-impostores" for="impostors-select"
+                                    class="text-xs font-bold uppercase tracking-widest text-gray-500 block mb-2 text-center"></label>
 
                                 <select id="impostors-select"
                                     class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
-                                    <option value="1" selected>1 Impostor</option>
-                                    <option value="2">2 Impostores</option>
-                                    <option value="3">3 Impostores</option>
-                                    <option value="4">4 Impostores</option>
-                                    <option value="RANDOM_30">Impostores Random &lt;30%</option>
-                                    <option value="RANDOM_50">Impostores Random &lt;50%</option>
-                                    <option value="RANDOM_MAX">Impostores Random</option>
                                 </select>
                                 <button id="start-btn"
                                     class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150">
@@ -141,61 +217,9 @@
                             </div>
                             </p>
                         </div>
-                        <a href="https://da-caro.github.io/setup-and-play/el-impostor.html" target="_blank"
-                            class="block">
+                        <a target="_blank" class="block" id="linkGuia">
                             <span class="mt-5 inline-block text-sm font-medium text-acento hover:underline">Ver
                                 Instrucciones →</span></a>
-                    </div>
-
-                    <div
-                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center space-x-3 mb-4">
-                                <span class="text-acento text-4xl block">📝</span>
-                                <h3 class="text-4xl font-bold">Registro</h3>
-                            </div>
-                            <p class="text-tarjeta text-base">
-                            <div class="flex flex-col space-y-2 mb-4">
-                                <label for="new-player-name" class="text-tarjeta">Añadir Jugadores (mínimo
-                                    3):</label>
-                                <div class="flex space-x-2">
-                                    <input type="text" id="new-player-name" placeholder="Introduce nombre (máx. 15)"
-                                        class="flex-1 p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none placeholder-gray-400"
-                                        maxlength="15"> <button id="add-player-btn"
-                                        class="shrink-0 bg-[--color-acento] text-white font-bold p-3 rounded-lg transition duration-150">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M12 4v16m8-8H4"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-
-                            </div>
-                            </p>
-                        </div>
-                    </div>
-                    <div
-                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center space-x-3 mb-4">
-                                <span class="text-acento text-4xl block">👥</span>
-                                <h3 class="text-4xl font-bold">Lista de Sospechosos</h3>
-                            </div>
-                            <p class="text-tarjeta text-base">
-                            <div class="flex flex-col space-y-2 mb-4">
-
-                                <div id="players-list-container"
-                                    class="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg min-h-[50px] max-h-[250px] overflow-y-auto">
-                                    <p id="empty-list-message" class="text-tarjeta italic text-sm">Aún no hay
-                                        jugadores añadidos.</p>
-                                    <ul id="players-list" class="space-y-2">
-                                    </ul>
-                                </div>
-
-                            </div>
-                            </p>
-                        </div>
                     </div>
                     <div
                         class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
@@ -214,24 +238,62 @@
                             </p>
                         </div>
                     </div>
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">📝</span>
+                                <h3 class="text-4xl font-bold">Registro</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+                                <label for="new-player-name" class="text-tarjeta">Añadir Jugadores (mínimo 3 y máx
+                                    20):</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="new-player-name" placeholder="Introduce nombre"
+                                        class="flex-1 p-3 bg-gray-700 border border-acento text-white rounded-lg focus:outline-none placeholder-gray-400"
+                                        maxlength="15"> <button id="add-player-btn"
+                                        class="shrink-0 bg-acento text-white font-bold p-3 rounded-lg transition duration-150">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                            </div>
+                            </p>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-tarjeta p-6 rounded-lg shadow-xl border border-tarjeta transition duration-300 h-full flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="text-acento text-4xl block">👥</span>
+                                <h3 class="text-4xl font-bold">Jugadores</h3>
+                            </div>
+                            <p class="text-tarjeta text-base">
+                            <div class="flex flex-col space-y-2 mb-4">
+
+                                <div id="players-list-container"
+                                    class="mt-4 p-3 bg-gray-800 border border-gray-700 rounded-lg min-h-[50px] max-h-[250px] overflow-y-auto">
+                                    <p id="empty-list-message" class="text-tarjeta italic text-sm">Aún no hay
+                                        jugadores añadidos.</p>
+                                    <ul id="players-list" class="space-y-2">
+                                    </ul>
+                                </div>
+
+                            </div>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     <main class="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-
         <div id="game-layout" class="flex flex-col lg:flex-row lg:space-x-8 hidden">
-            <!--
-            <div id="control-bar-wrapper"
-                class="flex flex-col sm:flex-row lg:flex-col justify-between items-center w-full lg:w-64 mb-6 lg:mb-0">
-
-                <div id="game-controls"
-                    class="flex space-x-2 w-full sm:w-auto lg:w-full lg:justify-start lg:space-x-0 lg:flex-col lg:space-y-2 mt-4 sm:mt-0 lg:mt-0">
-
-                </div>
-
-            </div>
-            -->
             <div id="game-board"
                 class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5 w-full lg:flex-1">
             </div>
@@ -244,36 +306,36 @@
     </div>
 
     <div id="roles-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <div id="modal-content"
-            class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
+        <div class="bg-tarjeta p-8 rounded-xl shadow-2xl max-w-lg w-full text-center border-4 border-acento">
+            <div id="modal-content">
 
-            <h2 id="modal-title" class="text-4xl font-extrabold mb-4 text-acento">Lista de Roles</h2>
+                <h2 id="modal-title" class="text-4xl font-extrabold mb-4 text-acento">Lista de Roles</h2>
 
-            <div class="mb-6">
-                <div>
-                    <h3 class="text-acento font-bold font-impostor border-b border-[--color-acento] mb-2">IMPOSTORES
-                    </h3>
-                    <ul id="impostors-list-reveal" class="text-white space-y-1"></ul>
-                </div>
+                <div class="mb-6">
+                    <div>
+                        <h3 class="text-acento font-bold font-impostor border-b border-[--color-acento] mb-2">IMPOSTORES
+                        </h3>
+                        <ul id="impostors-list-reveal" class="text-white space-y-1"></ul>
+                    </div>
 
-                <div>
-                    <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">TRIPULACIÓN</h3>
-                    <ul id="civilians-list-reveal" class="text-gray-300 space-y-1"></ul>
-                </div>
+                    <div>
+                        <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">TRIPULACIÓN</h3>
+                        <ul id="civilians-list-reveal" class="text-gray-300 space-y-1"></ul>
+                    </div>
 
-                <div>
-                    <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">ESPECIALES</h3>
-                    <ul id="special-list-reveal" class="text-white space-y-1"></ul>
+                    <div>
+                        <h3 class="text-gray-400 font-bold border-b border-gray-600 mb-2">ESPECIALES</h3>
+                        <ul id="special-list-reveal" class="text-white space-y-1"></ul>
+                    </div>
                 </div>
             </div>
-
             <button id="close-roles-modal"
-                class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
+                class="w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg mt-2">
                 Cerrar
             </button>
         </div>
-    </div>
 
+    </div>
 
     <div id="start-player-modal"
         class="fixed inset-0 bg-black bg-opacity-80 hidden items-center justify-center z-50 p-4">
@@ -323,57 +385,47 @@
         // Importar las funciones y el motor del juego
         import * as Game from './js/game.js';
         import * as UI from './js/ui.js';
-        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS, ROLE_GEMELO, ROLE_GEMELO_EXTRA } from './js/config.js';
+        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO } from './js/config.js';
 
-        // =========================================================
-        // INICIO: DOMContentLoaded
-        // =========================================================
         document.addEventListener('DOMContentLoaded', () => {
-            // === LÓGICA DE CARGA DE PARTIDA ===
+            // =========================================================
+            // LÓGICA DE CARGA DE PARTIDA
+            // =========================================================
             const impostorsSelect = document.getElementById('impostors-select');
             const loadedState = Game.loadGameState();
 
+            UI.actualizarEstiloBotones(localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR);
+            UI.aplicarTemaVisual();
+
             if (loadedState) {
-                // Hay una partida activa (con roles), la restauramos.
+                // Si hay una partida activa, la restauramos.
                 Game.restorePartida(loadedState);
             } else {
-                // 2. No hay partida activa. Intentamos cargar la lista de jugadores y la config.
+                // Si no hay partida activa. Cargar la lista de jugadores y las palabras usadas.
                 Game.loadPlayerList();
                 Game.loadUsedWordsHistory();
 
-                // === CARGA DEL NÚMERO DE IMPOSTORES ===
+                // Generar la interfaz de roles y cantidad de impostores
+                UI.generarCheckboxesRoles();
+                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
+
+                UI.actualizarSelectorCantidad();
                 const savedImpostors = Game.loadImpostorsCount();
                 if (savedImpostors !== null && impostorsSelect) {
-                    // Ya no usamos .toString(), ya que loadImpostorsCount devolverá el string guardado
                     impostorsSelect.value = savedImpostors;
                 }
 
-                // Generar la interfaz de roles dinámicamente
-                UI.generarCheckboxesRoles();
-
-                const rolesGuardados = Game.cargarPreferenciasRoles();
-                UI.aplicarPreferenciasRolesUI(rolesGuardados);
-
-                // 3. Mostrar siempre la pantalla de inicio para la configuración.
+                // Mostrar siempre la pantalla de inicio.
                 UI.mostrarBotonesInicio();
                 UI.ocultarTablero();
             }
 
-            //Controles del juego
-            document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
+            // =========================================================
+            // Controles del juego
+            // =========================================================
 
-            document.getElementById('random-start-btn').addEventListener('click', () => {
-                Game.elegirJugadorAleatorio();
-            });
-
-            document.getElementById('close-start-player-btn').addEventListener('click', () => {
-                const modal = document.getElementById('start-player-modal');
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            });
-
+            // Iniciar Partida
             document.getElementById('start-btn').addEventListener('click', () => {
-                // Usamos la variable impostorsSelect que ya está en el ámbito
                 const selectedImpostors = impostorsSelect.value;
                 const rolesSeleccionados = UI.getSelectedRoles();
 
@@ -383,56 +435,86 @@
                 Game.iniciarPartida(selectedImpostors, poolRoles);
             });
 
-            // Agrega el listener para el botón de cerrar modal (si usas game.js para esto)
+            // Finalizar Partida
+            document.getElementById('reset-game-btn').addEventListener('click', Game.finalizarPartida);
+
+            // Abrir menú "Revelar Roles"
+            document.getElementById('reveal-roles-btn').addEventListener('click', () => {
+                const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+                if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
+                    if (mode === MODE_IMPOSTOR) {
+                        // En modo Impostor abrimos la lista clásica de roles
+                        const data = Game.obtenerRevelacionRoles();
+                        UI.mostrarModalRoles(data);
+                    } else {
+                        // En modo Lobo abrimos el Panel de Control interactivo
+                        const data = Game.obtenerRevelacionLobo();
+                        UI.mostrarGuiaNarrador(data);
+                    }
+                }
+            });
+
+            // Cerrar menú "Revelar Roles"
+            document.getElementById('close-roles-modal').addEventListener('click', () => {
+                document.getElementById('roles-modal').classList.add('hidden');
+            });
+
+            // Abrir menú "Seleccionar Jugador Aleatorio"
+            document.getElementById('random-start-btn').addEventListener('click', () => {
+                Game.elegirJugadorAleatorio();
+            });
+
+            // Cerrar menú "Seleccionar Jugador Aleatorio"
+            document.getElementById('close-start-player-btn').addEventListener('click', () => {
+                const modal = document.getElementById('start-player-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
+
+            // Cerrar vista del role
             const closeBtn = document.getElementById('modal-close-btn');
             if (closeBtn) {
                 closeBtn.addEventListener('click', UI.ocultarModal);
             }
 
-
-            // 1. Mostrar modal al pulsar Revelar
-            document.getElementById('reveal-roles-btn').addEventListener('click', () => {
-                if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
-                    const data = Game.obtenerRevelacionRoles();
-                    UI.mostrarModalRoles(data);
-                }
+            // Botones de modo de juego
+            document.getElementById('btn-mode-impostor').addEventListener('click', () => {
+                localStorage.setItem(GAME_MODE_KEY, MODE_IMPOSTOR);
+                UI.actualizarEstiloBotones(MODE_IMPOSTOR);
+                UI.actualizarSelectorCantidad();
+                UI.aplicarTemaVisual();
+                UI.generarCheckboxesRoles();
+                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
+            });
+            document.getElementById('btn-mode-wolf').addEventListener('click', () => {
+                localStorage.setItem(GAME_MODE_KEY, MODE_LOBO);
+                UI.actualizarEstiloBotones(MODE_LOBO);
+                UI.actualizarSelectorCantidad();
+                UI.aplicarTemaVisual();
+                UI.generarCheckboxesRoles();
+                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
             });
 
-            // 2. Cerrar modal
-            document.getElementById('close-roles-modal').addEventListener('click', () => {
-                document.getElementById('roles-modal').classList.add('hidden');
+            // === Guargar las opciones cuando cambian ===
+            impostorsSelect.addEventListener('change', (e) => {
+                Game.saveImpostorsCount(e.target.value);
             });
 
-            // === LISTENER: Guardar la selección cuando cambia ===
-            if (impostorsSelect) {
-                impostorsSelect.addEventListener('change', (e) => {
-                    // Llamamos a la función recién creada en game.js
-                    Game.saveImpostorsCount(e.target.value);
-                });
-            }
-
-            const rolesContainer = document.getElementById('roles-checkboxes');
-            if (rolesContainer) {
-                rolesContainer.addEventListener('change', () => {
-                    const rolesActuales = UI.getSelectedRoles();
-                    Game.guardarPreferenciasRoles(rolesActuales);
-                });
-            }
+            document.getElementById('roles-checkboxes').addEventListener('change', () => {
+                Game.guardarPreferenciasRoles(UI.getSelectedRoles());
+            });
 
             // === Control de Añadir Jugadores ===
             const newPlayerInput = document.getElementById('new-player-name');
             const addPlayerBtn = document.getElementById('add-player-btn');
-
-            // Asignar la longitud máxima del nombre desde la configuración
-            newPlayerInput.maxLength = MAX_NAME_LENGTH; // <-- NUEVO
+            newPlayerInput.maxLength = MAX_NAME_LENGTH;
 
             function handleAddPlayer() {
                 const name = newPlayerInput.value;
-                if (Game.addPlayer(name)) { // Llama a la lógica en game.js
-                    newPlayerInput.value = ''; // Limpia el input si se añadió con éxito
+                if (Game.addPlayer(name)) {
+                    newPlayerInput.value = '';
                     newPlayerInput.focus();
                 } else {
-                    // Actualizamos el mensaje de alerta con las constantes
                     alert(`El nombre debe tener al menos ${MIN_NAME_LENGTH} caracter, no puede estar repetido y el máximo es de ${MAX_PLAYERS} jugadores.`);
                 }
             }
@@ -444,17 +526,46 @@
                 }
             });
 
-            // Borrar las variables almacenadas
+            // === Borrar las variables almacenadas ===
             document.getElementById('clear-storage-btn').addEventListener('click', () => {
                 const confirmClear = confirm("ADVERTENCIA: ¿Estás seguro de que quieres borrar el estado de la partida y las palabras usadas guardadas localmente?");
                 if (confirmClear) {
-                    Game.limpiarTodasVariables(); // Llama a la nueva función de Storage
-                    // Retroalimentación al usuario y reinicio para cargar el estado limpio
+                    Game.limpiarTodasVariables();
                     alert("¡Variables de juego borradas! La página se reiniciará para aplicar los cambios.");
                     window.location.reload();
                 }
             });
+
         });
+        // Función global para manejar los clics y guardar automáticamente
+        window.toggleEstadoPanel = function (nombre, tipo) {
+            const row = document.getElementById(`row-${nombre}`);
+            const key = `${PANEL_PLAYER_KEY}${nombre}`;
+            let estado = JSON.parse(localStorage.getItem(key)) || {
+                muerto: false, enamorado: false, pocionVida: false, pocionMuerte: false
+            };
+
+            if (tipo === 'muerto') {
+                estado.muerto = !estado.muerto;
+                row.classList.toggle('opacity-30', estado.muerto);
+            }
+            else if (tipo === 'enamorado') {
+                estado.enamorado = !estado.enamorado;
+                const btn = row.querySelector('.btn-corazon');
+                const icon = btn.querySelector('span');
+                icon.textContent = estado.enamorado ? '💘' : '🤍';
+                btn.classList.toggle('text-pink-500', estado.enamorado);
+                btn.classList.toggle('text-gray-500', !estado.enamorado);
+            }
+            else if (tipo === 'pocionVida' || tipo === 'pocionMuerte') {
+                estado[tipo] = !estado[tipo];
+                const idx = tipo === 'pocionVida' ? 0 : 1;
+                row.querySelectorAll('.flex.gap-0\\.5 button')[idx].classList.toggle('opacity-30', estado[tipo]);
+            }
+
+            localStorage.setItem(key, JSON.stringify(estado));
+        };
+
     </script>
 </body>
 
