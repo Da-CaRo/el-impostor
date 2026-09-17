@@ -18,6 +18,7 @@
         :root {
             --color-acento: #FF3B30;
             --color-acento-lobo: #4F46E5;
+            --color-acento-camelot: #F59E0B;
             --color-fondo: #111827;
             --color-tarjeta: #1F2937;
 
@@ -134,6 +135,32 @@
         body.tema-lobo .accent-acento {
             accent-color: var(--color-acento-lobo);
         }
+
+        /* Tema Camelot */
+        body.tema-camelot {
+            background: radial-gradient(circle at center, #414b1b 0%, #020617 100%);
+            background-attachment: fixed;
+        }
+
+        body.tema-camelot .text-acento {
+            color: var(--color-acento-camelot);
+        }
+
+        body.tema-camelot .border-tarjeta:hover {
+            border-color: var(--color-acento-camelot);
+        }
+
+        body.tema-camelot .bg-acento {
+            background-color: var(--color-acento-camelot);
+        }
+
+        body.tema-camelot .border-acento {
+            border-color: var(--color-acento-camelot);
+        }
+
+        body.tema-camelot .accent-acento {
+            accent-color: var(--color-acento-camelot);
+        }
     </style>
 </head>
 
@@ -192,12 +219,16 @@
                                     Modo de Juego</label>
                                 <div class="flex justify-center gap-2">
                                     <button id="btn-mode-impostor"
-                                        class="px-4 py-2 rounded-lg bg-red-600 text-white font-bold text-sm transition-all border-2 border-red-500">
-                                        EL IMPOSTOR
+                                        class="px-2 py-2 rounded-lg bg-red-600 text-white font-bold text-sm transition-all border-2 border-red-500">
+                                        IMPOSTOR
                                     </button>
                                     <button id="btn-mode-wolf"
-                                        class="px-4 py-2 rounded-lg bg-gray-800 text-gray-400 font-bold text-sm transition-all border-2 border-indigo-500">
+                                        class="px-2 py-2 rounded-lg bg-gray-800 text-gray-400 font-bold text-sm transition-all border-2 border-indigo-500">
                                         CASTRONEGRO
+                                    </button>
+                                    <button id="btn-mode-camelot"
+                                        class="px-2 py-2 rounded-lg bg-gray-800 text-gray-400 font-bold text-sm transition-all border-2 border-amber-500">
+                                        CAMELOT
                                     </button>
                                 </div>
                             </div>
@@ -230,9 +261,14 @@
                             </div>
                             <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <div class="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                                <div class="mb-2 px-4 py-1 bg-gray-800 rounded-lg border border-gray-700">
                                     <div class="grid grid-cols-2 gap-2" id="roles-checkboxes">
                                     </div>
+
+                                </div>
+                                <div class="bg-gray-800 rounded-lg border border-gray-700 hidden"
+                                    id="roles-table-container">
+
                                 </div>
                             </div>
                             </p>
@@ -247,7 +283,8 @@
                             </div>
                             <p class="text-tarjeta text-base">
                             <div class="flex flex-col space-y-2 mb-4">
-                                <label for="new-player-name" class="text-tarjeta">Añadir Jugadores (mínimo 3 y máx
+                                <label id="label-add-players" for="new-player-name" class="text-tarjeta">Añadir
+                                    Jugadores (mínimo 3 y máx
                                     20):</label>
                                 <div class="flex space-x-2">
                                     <input type="text" id="new-player-name" placeholder="Introduce nombre"
@@ -385,7 +422,7 @@
         // Importar las funciones y el motor del juego
         import * as Game from './js/game.js';
         import * as UI from './js/ui.js';
-        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, MAX_PLAYERS, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO } from './js/config.js';
+        import { MIN_NAME_LENGTH, MAX_NAME_LENGTH, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO, MODE_CAMELOT } from './js/config.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             // =========================================================
@@ -397,25 +434,30 @@
             UI.actualizarEstiloBotones(localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR);
             UI.aplicarTemaVisual();
 
-            if (loadedState) {
-                // Si hay una partida activa, la restauramos.
-                Game.restorePartida(loadedState);
-            } else {
-                // Si no hay partida activa. Cargar la lista de jugadores y las palabras usadas.
-                Game.loadPlayerList();
-                Game.loadUsedWordsHistory();
+            Game.loadPlayerList();
+            Game.loadUsedWordsHistory();
 
-                // Generar la interfaz de roles y cantidad de impostores
-                UI.generarCheckboxesRoles();
-                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
+            // Generar la interfaz de roles y cantidad de impostores
+            UI.generarCheckboxesRoles();
+            UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
 
-                UI.actualizarSelectorCantidad();
+            UI.actualizarSelectorCantidad(Game.obtenerCantidadJugadores());
+            UI.actualizarEtiquetaLimitesJugadores();
+
+            const currentMode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+            if (currentMode !== MODE_CAMELOT) {
                 const savedImpostors = Game.loadImpostorsCount();
                 if (savedImpostors !== null && impostorsSelect) {
                     impostorsSelect.value = savedImpostors;
                 }
+            }
 
-                // Mostrar siempre la pantalla de inicio.
+            if (loadedState) {
+                // Si hay una partida activa, la restauramos.
+                Game.restorePartida(loadedState);
+
+            } else {
+                // Si no hay partida activa. Se muestra la pantalla de inicio.
                 UI.mostrarBotonesInicio();
                 UI.ocultarTablero();
             }
@@ -426,7 +468,13 @@
 
             // Iniciar Partida
             document.getElementById('start-btn').addEventListener('click', () => {
-                const selectedImpostors = impostorsSelect.value;
+                let selectedImpostors = 0;
+                if (localStorage.getItem(GAME_MODE_KEY) === MODE_CAMELOT) {
+                    selectedImpostors = Game.getCamelotConfig(Game.obtenerCantidadJugadores()).mordred
+                } else {
+                    selectedImpostors = impostorsSelect.value;
+                }
+
                 const rolesSeleccionados = UI.getSelectedRoles();
 
                 // Cambia el gemelo extra por uno normal
@@ -441,11 +489,16 @@
             // Abrir menú "Revelar Roles"
             document.getElementById('reveal-roles-btn').addEventListener('click', () => {
                 const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
-                if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
+                if (mode === MODE_CAMELOT) {
+                    // En modo Camelot motramos el tablero
+                    const data = Game.obtenerRevelacionRoles();
+                    UI.mostrarTableroCamelot(data);
+                } else if (confirm("¿Estás seguro de que quieres revelar todos los roles?")) {
                     if (mode === MODE_IMPOSTOR) {
                         // En modo Impostor abrimos la lista clásica de roles
                         const data = Game.obtenerRevelacionRoles();
                         UI.mostrarModalRoles(data);
+
                     } else {
                         // En modo Lobo abrimos el Panel de Control interactivo
                         const data = Game.obtenerRevelacionLobo();
@@ -495,6 +548,15 @@
                 UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
             });
 
+            document.getElementById('btn-mode-camelot').addEventListener('click', () => {
+                localStorage.setItem(GAME_MODE_KEY, MODE_CAMELOT);
+                UI.actualizarEstiloBotones(MODE_CAMELOT);
+                UI.actualizarSelectorCantidad(Game.obtenerCantidadJugadores());
+                UI.aplicarTemaVisual();
+                UI.generarCheckboxesRoles();
+                UI.aplicarPreferenciasRolesUI(Game.cargarPreferenciasRoles());
+            });
+
             // === Guargar las opciones cuando cambian ===
             impostorsSelect.addEventListener('change', (e) => {
                 Game.saveImpostorsCount(e.target.value);
@@ -515,7 +577,8 @@
                     newPlayerInput.value = '';
                     newPlayerInput.focus();
                 } else {
-                    alert(`El nombre debe tener al menos ${MIN_NAME_LENGTH} caracter, no puede estar repetido y el máximo es de ${MAX_PLAYERS} jugadores.`);
+                    const { min, max } = Game.getGameLimits();
+                    alert(`El nombre debe tener al menos ${MIN_NAME_LENGTH} caracter, no puede estar repetido y el máximo es de ${max} jugadores.`);
                 }
             }
 
@@ -537,6 +600,7 @@
             });
 
         });
+
         // Función global para manejar los clics y guardar automáticamente
         window.toggleEstadoPanel = function (nombre, tipo) {
             const row = document.getElementById(`row-${nombre}`);

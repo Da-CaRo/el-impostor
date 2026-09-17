@@ -1,5 +1,5 @@
-import { ROLES_DATA, ROLES_LOBO_DATA, ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_LOBO, ROLE_ALDEANO, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, OPCIONES_ENEMIGOS, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO } from './config.js';
-
+import { ROLES_DATA, ROLES_LOBO_DATA, ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_LOBO, ROLE_ALDEANO, ROLE_GEMELO, ROLE_GEMELO_EXTRA, GAME_MODE_KEY, OPCIONES_ENEMIGOS, PANEL_PLAYER_KEY, MODE_IMPOSTOR, MODE_LOBO, MODE_CAMELOT, ROLES_CAMELOT_DATA, ROLE_SERVIDOR, ROLE_ESBIRRO, CAMELOT_MISSIONS_KEY, ROLES_DISTRIBUTION_CAMELOT, ROLE_CAMELOT_ESPE_ALIADO, ROLE_CAMELOT_ESPE_MORDRED, ROLE_IMPOSTOR_ESPE_TRIPULACION, ROLE_IMPOSTOR_ESPE_IMPOSTOR, ROLE_LOBO_ESPE_ALDEA, ROLE_LOBO_ESPE_LOBOS, CAMELOT_VOTES_KEY } from './config.js';
+import { getGameLimits } from './game.js';
 // Variable global para rastrear el ID del jugador durante el arrastre
 let draggedPlayerId = null;
 
@@ -31,6 +31,11 @@ export function mostrarTablero() {
         randomBtn.classList.add('hidden');
         randomBtn.classList.remove('flex');
         revealBtn.innerHTML = `<span class="mr-2">🏘️</span> Estado De Aldea`;
+    } else if (mode === MODE_CAMELOT) {
+        randomBtn.classList.remove('hidden');
+        randomBtn.classList.add('flex');
+        revealBtn.innerHTML = `<span class="mr-2">🎮</span> Abrir Tablero`;
+
     } else {
         randomBtn.classList.remove('hidden');
         randomBtn.classList.add('flex');
@@ -271,6 +276,8 @@ export function mostrarModalRoles(data) {
     const civList = document.getElementById('civilians-list-reveal');
 
     const renderLista = (listaElement, elementos) => {
+        if (!listaElement || !elementos) return;
+
         listaElement.innerHTML = '';
         elementos.forEach(item => {
             const li = document.createElement('li');
@@ -286,7 +293,11 @@ export function mostrarModalRoles(data) {
     renderLista(specList, data.especiales);
     renderLista(civList, data.inocentes);
 
-    document.getElementById('roles-modal').classList.replace('hidden', 'flex');
+    const modal = document.getElementById('roles-modal');
+    if (modal) {
+        modal.classList.replace('hidden', 'flex');
+    }
+
 }
 
 /**
@@ -330,6 +341,221 @@ export function mostrarGuiaNarrador(datosAgrupados) {
                 <span class="bg-gray-800 p-1 rounded">5. 🐺 Lobos</span>
                 <span class="bg-gray-800 p-1 rounded">6. 🧙‍♀️ Bruja</span>
             </div>
+        </div>
+    `;
+
+    document.getElementById('roles-modal').classList.replace('hidden', 'flex');
+}
+
+/**
+ * Obtiene el estado guardado en localStorage o devuelve el estado inicial por defecto.
+ * @returns {Array<string>} Array con 5 estados ('pendiente', 'exito', 'fracaso').
+ */
+function cargarEstadoMisiones() {
+    const guardado = localStorage.getItem(CAMELOT_MISSIONS_KEY);
+    if (guardado) {
+        try {
+            return JSON.parse(guardado);
+        } catch (e) {
+            console.error('Error al parsear el estado de misiones:', e);
+        }
+    }
+    return ['pendiente', 'pendiente', 'pendiente', 'pendiente', 'pendiente'];
+}
+
+/**
+ * Guarda el array de estados en localStorage.
+ * @param {Array<string>} estados 
+ */
+function guardarEstadoMisiones(estados) {
+    localStorage.setItem(CAMELOT_MISSIONS_KEY, JSON.stringify(estados));
+}
+
+/**
+ * Cambia el estado de una misión al hacer clic (Pendiente -> Éxito -> Fracaso -> Pendiente)
+ * @param {number} index - Índice de la misión (0 a 4).
+ * @param {Object} datosAgrupados - Datos de la partida para re-renderizar el modal.
+ */
+window.rotarEstadoMision = function (index, datosAgrupados) {
+    let estadoMisiones = cargarEstadoMisiones();
+    const estadosPosibles = ['pendiente', 'exito', 'fracaso'];
+
+    const estadoActual = estadoMisiones[index] || 'pendiente';
+    const siguienteEstado = estadosPosibles[(estadosPosibles.indexOf(estadoActual) + 1) % estadosPosibles.length];
+
+    estadoMisiones[index] = siguienteEstado;
+    guardarEstadoMisiones(estadoMisiones);
+
+    // Re-renderizar el tablero con el nuevo estado
+    mostrarTableroCamelot(datosAgrupados);
+};
+
+function cargarVotosFallidos() {
+    return parseInt(localStorage.getItem(CAMELOT_VOTES_KEY) || '0', 10);
+}
+
+function guardarVotosFallidos(votos) {
+    localStorage.setItem(CAMELOT_VOTES_KEY, votos);
+}
+
+// Actualiza el número de votos fallidos y vuelve a renderizar el tablero
+window.actualizarVotosFallidos = function(numVoto, datosAgrupados) {
+    const votosActuales = cargarVotosFallidos();
+    // Si vuelves a pulsar en el mismo número activo, se desmarca (baja 1 nivel)
+    const nuevoValor = (votosActuales === numVoto) ? numVoto - 1 : numVoto;
+    
+    guardarVotosFallidos(nuevoValor);
+    mostrarTableroCamelot(datosAgrupados);
+};
+
+/**
+ * Genera y muestra el tablero interactivo para el modo Camelot.
+ * @param {Object} datosAgrupados - Jugadores agrupados por { leales, malvados }.
+ */
+export function mostrarTableroCamelot(datosAgrupados) {
+    const contenedor = document.getElementById('modal-content');
+    if (!contenedor) return;
+
+    window.datosCamelotActuales = datosAgrupados;
+
+    // Cargar los estados actualizados desde localStorage
+    const estadoMisiones = cargarEstadoMisiones();
+    const votosFallidos = cargarVotosFallidos();
+
+    // Calcular el número total de jugadores
+    const totalJugadores = (datosAgrupados.leales?.length || 0) + (datosAgrupados.malvados?.length || 0);
+
+    const configEstado = {
+        pendiente: { icono: '⚔️', texto: 'Pendiente', clase: 'bg-gray-800 border-gray-700 text-gray-400' },
+        exito: { icono: '🛡️', texto: 'Éxito', clase: 'bg-blue-950/80 border-blue-500 text-blue-400' },
+        fracaso: { icono: '🗡️', texto: 'Fracaso', clase: 'bg-red-950/80 border-red-500 text-red-400' }
+    };
+
+    // Matriz de personas por misión según número de jugadores (5 a 10)
+    // El formato del valor es el número de participantes. Un '*' indica que requiere 2 fracasos.
+    const tablaMisiones = {
+        1: [2, 2, 2, 3, 3, 3], // Misión 1 (5, 6, 7, 8, 9, 10 jug.)
+        2: [3, 3, 3, 4, 4, 4], // Misión 2
+        3: [2, 4, 3, 4, 4, 4], // Misión 3
+        4: [3, 3, '4*', '5*', '5*', '5*'], // Misión 4 (* = 2 fracasos)
+        5: [3, 4, 4, 5, 5, 5]  // Misión 5
+    };
+
+    const renderSeccion = (titulo, jugadores, colorClase) => {
+        if (!jugadores || jugadores.length === 0) return '';
+        return `
+            <div class="mb-3">
+                <h3 class="${colorClase} font-bold text-xs uppercase border-b border-gray-700 pb-1 mb-2">${titulo}</h3>
+                <div class="grid grid-cols-2 gap-1.5">
+                    ${jugadores.map(p => generarTarjetaDetallada(p)).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    contenedor.innerHTML = `
+        <div class="w-full max-w-lg mx-auto">
+            <h2 class="text-xl font-black text-acento uppercase text-center mb-3 tracking-wide">
+                👑 Tablero de Camelot
+            </h2>
+
+            <!-- Marcador de las 5 Misiones Interactivo -->
+            <div class="mb-4 p-3 bg-gray-900 border border-gray-700 rounded-xl">
+                <p class="text-l text-gray-400 uppercase font-black text-center mb-2 tracking-wider">
+                    Registro de Misiones
+                </p>
+                <div class="flex justify-between items-center gap-1">
+                    ${estadoMisiones.map((est, i) => {
+        const conf = configEstado[est] || configEstado.pendiente;
+        return `
+                            <button 
+                                onclick="rotarEstadoMision(${i}, window.datosCamelotActuales)" 
+                                class="flex-1 flex flex-col items-center p-2 border rounded-lg transition-all active:scale-95 cursor-pointer ${conf.clase}"
+                            >
+                                <span class="text-xl font-bold">M${i + 1}</span>
+                                <span class="text-lg my-0.5">${conf.icono}</span>
+                                <span class="text-[7px] md:text-[11px] font-bold uppercase tracking-tighter">${conf.texto}</span>
+                            </button>
+                        `;
+    }).join('')}
+                </div>
+            </div>
+
+            <!-- Marcador de Votaciones Rechazadas / Fallidas (0 a 5) -->
+            <div class="mb-4 p-3 bg-gray-900 border border-gray-700 rounded-xl">
+                <div class="flex justify-between items-center mb-2">
+                    <p class="text-xs text-gray-400 uppercase font-black tracking-wider">
+                        Votaciones Rechazadas
+                    </p>
+                    <span class="text-[10px] text-red-400 font-bold uppercase">5 Rechazos = Derrota</span>
+                </div>
+                <div class="flex justify-between items-center gap-1.5">
+                    ${[1, 2, 3, 4, 5].map(votoNum => {
+                        const esAlcanzado = votoNum <= votosFallidos;
+                        const esElQuinto = votoNum === 5;
+                        
+                        let estiloClase = "bg-gray-800/80 border-gray-700 text-gray-500 hover:border-gray-500";
+                        if (esAlcanzado) {
+                            estiloClase = esElQuinto 
+                                ? "bg-red-600 border-red-400 text-white font-black shadow-lg shadow-red-900/50" 
+                                : "bg-red-950 border-red-500 text-red-400 font-bold";
+                        }
+
+                        return `
+                            <button 
+                                onclick="actualizarVotosFallidos(${votoNum}, window.datosCamelotActuales)" 
+                                class="flex-1 flex flex-col items-center justify-center py-1.5 border rounded-lg transition-all active:scale-95 cursor-pointer ${estiloClase}"
+                                title="Marcar ${votoNum} voto(s) fallido(s)"
+                            >
+                                <span class="text-xs font-black">${votoNum}º</span>
+                                <span class="text-sm my-0.5">${esAlcanzado ? '❌' : '⚪'}</span>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+
+            <!-- Listado de Jugadores por bando -->
+            <div class="max-h-[35vh] overflow-y-auto pr-1 custom-scrollbar">
+                ${renderSeccion('🛡️ BANDO LEAL (ARTURO)', datosAgrupados.leales, 'text-blue-400')}
+                ${renderSeccion('🗡️ BANDO MALVADO (MORDRED)', datosAgrupados.malvados, 'text-red-400')}
+            </div>
+        </div>
+
+        <!-- Tabla de Requisitos de Jugadores por Misión (5-10 Participantes) -->
+        <div class="mt-3 p-2.5 bg-gray-900 border border-gray-700 rounded-lg">
+            <p class="text-xl text-gray-400 uppercase font-black mb-1.5 text-center tracking-wider">
+                👥 Jugadores por Misión
+            </p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-center text-l">
+                    <thead>
+                        <tr class="border-b border-gray-700 text-gray-400 font-bold">
+                            <th class="py-1 px-1 text-left">Misión</th>
+                            ${[5, 6, 7, 8, 9, 10].map(num => `
+                                <th class="py-1 px-1 ${totalJugadores === num ? 'text-acento font-black underline' : ''}">${num}p</th>
+                            `).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800 text-gray-200">
+                        ${[1, 2, 3, 4, 5].map(misionNum => `
+                            <tr class="hover:bg-gray-800/50">
+                                <td class="py-1 px-1 font-bold text-gray-400 text-left">M${misionNum}</td>
+                                ${tablaMisiones[misionNum].map((val, idx) => {
+        const esColumnaActual = totalJugadores === (idx + 5);
+        const esDosFracasos = String(val).includes('*');
+        return `
+                                        <td class="py-1 px-1 ${esColumnaActual ? 'bg-acento/10 font-black text-white' : ''}">
+                                            <span class="${esDosFracasos ? 'text-red-400 font-bold' : ''}">${val}</span>
+                                        </td>
+                                    `;
+    }).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-[8px] text-gray-500 text-right mt-1">* Requiere 2 votos de Fracaso para no completarse</p>
         </div>
     `;
 
@@ -417,23 +643,60 @@ export function aplicarPreferenciasRolesUI(rolesList) {
  */
 export function generarCheckboxesRoles() {
     const container = document.getElementById('roles-checkboxes');
+    const table = document.getElementById('roles-table-container');
     if (!container) return;
+
     container.innerHTML = '';
+    if (table) table.innerHTML = '';
 
     // 1. Detectar el modo de juego
     const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
 
-    // 2. Elegir qué lista de roles mostrar
-    const currentRolesData = (mode === MODE_LOBO) ? ROLES_LOBO_DATA : ROLES_DATA;
+    let rolesBuenos = [];
+    let rolesMalos = [];
+    let tituloBuenos = "BUENOS";
+    let tituloMalos = "MALOS";
 
-    // 3. Definir qué roles NO mostrar en la lista de selección (los básicos)
-    const excludeIds = [ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_LOBO, ROLE_ALDEANO];
-    const rolesEspeciales = currentRolesData.filter(rol => !excludeIds.includes(rol.id));
+    // 1. Clasificar los roles por bando según el modo activo
+    if (mode === MODE_CAMELOT) {
 
-    rolesEspeciales.forEach(rol => {
+        rolesBuenos = ROLE_CAMELOT_ESPE_ALIADO.map(id => ROLES_CAMELOT_DATA.find(r => r.id === id)).filter(Boolean);
+        rolesMalos = ROLE_CAMELOT_ESPE_MORDRED.map(id => ROLES_CAMELOT_DATA.find(r => r.id === id)).filter(Boolean);
+        tituloBuenos = "🛡️ BANDO DE ARTURO";
+        tituloMalos = "🗡️ BANDO DE MORDRED";
+    } else if (mode === MODE_LOBO) {
+        rolesBuenos = ROLE_LOBO_ESPE_ALDEA.map(id => ROLES_LOBO_DATA.find(r => r.id === id)).filter(Boolean);
+        rolesMalos = ROLE_LOBO_ESPE_LOBOS.map(id => ROLES_LOBO_DATA.find(r => r.id === id)).filter(Boolean);
+        tituloBuenos = "🧑‍🌾 ALDEANOS ESPECIALES";
+        tituloMalos = "🐺 LOBOS ESPECIALES";
+    } else {
+        // MODO IMPOSTOR
+        rolesBuenos = ROLE_IMPOSTOR_ESPE_TRIPULACION.map(id => ROLES_DATA.find(r => r.id === id)).filter(Boolean);
+        rolesMalos = ROLE_IMPOSTOR_ESPE_IMPOSTOR.map(id => ROLES_DATA.find(r => r.id === id)).filter(Boolean);
+        tituloBuenos = "🚀 TRIPULACIÓN ESPECIAL";
+        tituloMalos = "🔪 COMPLICES";
+    }
+
+    // Helper para crear el nodo label de cada rol
+    const crearLabelRol = (rol) => {
         const label = document.createElement('label');
-        const isExtra = rol.id === ROLE_GEMELO_EXTRA;
-        label.className = `flex items-center space-x-2 text-sm cursor-pointer hover:text-white transition-colors ${isExtra ? 'ml-6 border-l border-gray-700 pl-2' : ''}`;
+        const isExtra = (rol.id === ROLE_GEMELO_EXTRA);
+
+        let colorTexto = 'hover:text-white';
+        if (mode === MODE_CAMELOT) {
+            if (ROLE_CAMELOT_ESPE_ALIADO.includes(rol.id)) colorTexto = 'text-blue-400 font-medium';
+            if (ROLE_CAMELOT_ESPE_MORDRED.includes(rol.id)) colorTexto = 'text-red-400 font-medium';
+        } else if (mode === MODE_LOBO) {
+            if (ROLE_LOBO_ESPE_ALDEA.includes(rol.id)) colorTexto = 'text-blue-400 font-medium';
+            if (ROLE_LOBO_ESPE_LOBOS.includes(rol.id)) colorTexto = 'text-red-400 font-medium';
+        } else if (mode === MODE_IMPOSTOR) {
+            if (ROLE_IMPOSTOR_ESPE_TRIPULACION.includes(rol.id)) colorTexto = 'text-blue-400 font-medium';
+            if (ROLE_IMPOSTOR_ESPE_IMPOSTOR.includes(rol.id)) colorTexto = 'text-red-400 font-medium';
+        }
+
+        const estiloIndentacion = isExtra ? 'ml-7' : '';
+
+        label.className = `flex items-center space-x-2 text-sm cursor-pointer transition-colors ${colorTexto} ${estiloIndentacion}`;
         label.innerHTML = `
             <input type="checkbox" value="${rol.id}" id="check-${rol.id}" class="role-check accent-acento w-4 h-4">
             <span class="flex items-center gap-1">
@@ -441,13 +704,35 @@ export function generarCheckboxesRoles() {
                 <span class="${isExtra ? 'text-[11px] text-gray-400' : ''}">${rol.name}</span>
             </span>
         `;
-        container.appendChild(label);
-    });
+        return label;
+    };
 
-    // Activar la lógica de gemelos solo si estamos en modo Impostor
+    // Renderizar sección (Buenos / Malos)
+    const renderSeccion = (titulo, roles, colorTitulo) => {
+        if (roles.length === 0) return;
+
+        const header = document.createElement('div');
+        header.className = "col-span-2 mb-1 border-b border-gray-700";
+        header.innerHTML = `<span class="text-xs font-bold uppercase tracking-wider ${colorTitulo}">${titulo}</span>`;
+        container.appendChild(header);
+
+        roles.forEach(rol => {
+            container.appendChild(crearLabelRol(rol));
+        });
+    };
+
+    container.className = "grid grid-cols-2 gap-2 text-left items-center";
+
+    // 2. Inyectar Secciones
+    renderSeccion(tituloBuenos, rolesBuenos, "text-blue-400");
+    renderSeccion(tituloMalos, rolesMalos, "text-red-400");
+
+
+    // 4. Sincronización del 2º Gemelo (Ejecutada tras insertar el HTML en el DOM)
     if (mode === MODE_IMPOSTOR) {
         const checkPrincipal = document.getElementById(`check-${ROLE_GEMELO}`);
         const checkExtra = document.getElementById(`check-${ROLE_GEMELO_EXTRA}`);
+
         if (checkPrincipal && checkExtra) {
             const sincronizarGemelos = () => {
                 if (!checkPrincipal.checked) {
@@ -463,23 +748,64 @@ export function generarCheckboxesRoles() {
             sincronizarGemelos();
         }
     }
+
+    // 4. Renderizar Tabla de Camelot
+    if (mode === MODE_CAMELOT && table) {
+        table.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-center text-[11px] px-4 py-1">
+                    <thead>
+                        <tr class="border-b border-gray-700 text-gray-400 font-bold">
+                            <th class="px-1 pl-3 text-left text-gray-500">Jugadores</th>
+                            ${ROLES_DISTRIBUTION_CAMELOT.map(d => `<th class="py-1 px-1 font-bold text-white">${d.jug}p</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        <tr>
+                            <td class="px-1 pl-3 text-left text-sm font-semibold text-blue-400">🛡️ Aliados</td>
+                            ${ROLES_DISTRIBUTION_CAMELOT.map(d => `<td class="px-1 text-gray-300">${d.aliados}</td>`).join('')}
+                        </tr>
+                        <tr>
+                            <td class="px-1 pl-3 text-left text-sm font-semibold text-red-400">🗡️ Mordred</td>
+                            ${ROLES_DISTRIBUTION_CAMELOT.map(d => `<td class="px-1 text-gray-300">${d.mordred}</td>`).join('')}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 }
 
 /**
- * Actualiza las opciones del elemento <select> de cantidad de enemigos basándose en el modo actual.
+ * Actualiza las opciones del elemento <select> de cantidad de enemigos o
+ * muestra un contador de jugadores si el modo actual es Camelot.
+ * @param {number} totalJugadores - Número total de jugadores añadidos en la lista.
  */
-export function actualizarSelectorCantidad() {
+export function actualizarSelectorCantidad(totalJugadores = 0) {
     const selector = document.getElementById('impostors-select');
+    const labelNumImpostores = document.getElementById('label-num-impostores');
     const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
-    const opciones = OPCIONES_ENEMIGOS[mode] || OPCIONES_ENEMIGOS.IMPOSTOR;
 
-    selector.innerHTML = '';
-    opciones.forEach(opt => {
-        const el = document.createElement('option');
-        el.value = opt.value;
-        el.textContent = opt.label;
-        selector.appendChild(el);
-    });
+    if (!selector) return;
+
+    if (mode === MODE_CAMELOT) {
+        selector.innerHTML = `<option value="${totalJugadores}">${totalJugadores} Jugadores</option>`;
+        selector.disabled = true;
+    } else {
+        if (labelNumImpostores) {
+            labelNumImpostores.textContent = mode === MODE_LOBO ? "Número de Lobos:" : "Número de Impostores:";
+        }
+        selector.disabled = false;
+
+        const opciones = OPCIONES_ENEMIGOS[mode] || OPCIONES_ENEMIGOS.IMPOSTOR;
+        selector.innerHTML = '';
+        opciones.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt.value;
+            el.textContent = opt.label;
+            selector.appendChild(el);
+        });
+    }
 }
 
 /**
@@ -495,12 +821,22 @@ export function aplicarTemaVisual() {
 
     if (mode === MODE_LOBO) {
         body.classList.add('tema-lobo');
+        body.classList.remove('tema-camelot');
         heroTitle.innerHTML = `El miedo tiene <span class="font-impostor text-acento">garras</span>`;
         heroSubtitle.innerHTML = "Al caer el sol, los vecinos se vuelven presas. Encuentra a la bestia antes de que el último aliento se apague.";
         labelNumImpostores.innerHTML = "Número de Lobos";
         linkGuia.href = `https://da-caro.github.io/setup-and-play/el-impostor-castronegro.html`;
+    } else if (mode === MODE_CAMELOT) {
+        body.classList.remove('tema-lobo');
+        body.classList.add('tema-camelot');
+        heroTitle.innerHTML = `El <span class="font-impostor text-acento">honor</span> es una ilusión`;
+        heroSubtitle.innerHTML = "Entre caballeros se esconden traidores leales a Mordred. Completa las misiones y protege la corona antes de que Camelot caiga";
+        labelNumImpostores.innerHTML = "Número de Jugadores Añadidos";
+        linkGuia.href = `https://da-caro.github.io/setup-and-play/el-impostor-camelot.html`;
+
     } else {
         body.classList.remove('tema-lobo');
+        body.classList.remove('tema-camelot');
         heroTitle.innerHTML = `La <span class="font-impostor text-acento">verdad</span> es un privilegio`;
         heroSubtitle.innerHTML = "Solo los elegidos conocen el secreto. Los demás deberán improvisar para sobrevivir. ¿Serás capaz de mantener la máscara hasta el final?";
         labelNumImpostores.innerHTML = "Número de Impostores";
@@ -510,21 +846,53 @@ export function aplicarTemaVisual() {
 
 /**
  * Alterna el estilo visual (colores y estados activos) de los botones de cambio de modo.
- * @param {string} modo - El modo de juego seleccionado (MODE_IMPOSTOR | MODE_LOBO).
+ * @param {string} modo - El modo de juego seleccionado (MODE_IMPOSTOR | MODE_LOBO | MODE_CAMELOT).
  */
 export function actualizarEstiloBotones(modo) {
     const btnImpostor = document.getElementById('btn-mode-impostor');
     const btnWolf = document.getElementById('btn-mode-wolf');
+    const btnCamelot = document.getElementById('btn-mode-camelot');
+    const containerRolesTable = document.getElementById('roles-table-container');
+
+    actualizarEtiquetaLimitesJugadores();
 
     if (modo === MODE_IMPOSTOR) {
         btnImpostor.classList.add('bg-red-600', 'text-white');
         btnImpostor.classList.remove('text-gray-400');
         btnWolf.classList.remove('bg-indigo-600', 'text-white');
         btnWolf.classList.add('text-gray-400');
-    } else {
+        btnCamelot.classList.remove('bg-amber-600', 'text-white');
+        btnCamelot.classList.add('text-gray-400');
+        containerRolesTable.classList.add('hidden');
+
+    } else if (modo === MODE_LOBO) {
         btnWolf.classList.add('bg-indigo-600', 'text-white');
         btnWolf.classList.remove('text-gray-400');
         btnImpostor.classList.remove('bg-red-600', 'text-white');
         btnImpostor.classList.add('text-gray-400');
+        btnCamelot.classList.remove('bg-amber-600', 'text-white');
+        btnCamelot.classList.add('text-gray-400');
+        containerRolesTable.classList.add('hidden');
+
+    } else if (modo === MODE_CAMELOT) {
+        btnCamelot.classList.add('bg-amber-600', 'text-white');
+        btnCamelot.classList.remove('text-gray-400');
+        btnImpostor.classList.remove('bg-red-600', 'text-white');
+        btnImpostor.classList.add('text-gray-400');
+        btnWolf.classList.remove('bg-indigo-600', 'text-white');
+        btnWolf.classList.add('text-gray-400');
+        containerRolesTable.classList.remove('hidden');
     }
+}
+
+/**
+ * Actualiza la etiqueta de adición de jugadores con los límites del modo actual.
+ */
+export function actualizarEtiquetaLimitesJugadores() {
+    // Asegúrate de usar el ID o selector exacto de tu HTML
+    const labelHeader = document.getElementById('label-add-players'); // O el selector correspondiente
+    if (!labelHeader) return;
+
+    const { min, max } = getGameLimits();
+    labelHeader.textContent = `Añadir Jugadores (mínimo ${min} y máx ${max})`;
 }

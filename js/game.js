@@ -1,14 +1,17 @@
 import * as UI from './ui.js';
 import { PALABRAS_CLAVE_LISTA } from '../data/palabras.js';
 import {
-    MAX_PLAYERS, MAX_NAME_LENGTH, MIN_NAME_LENGTH, MIN_PLAYERS,
+    MAX_NAME_LENGTH, MIN_NAME_LENGTH, /*MIN_PLAYERS,*/
     GAME_STATE_KEY, PLAYER_LIST_KEY, IMPOSTORS_KEY, USED_WORDS_KEY,
     CONFIGS_KEY, GAME_MODE_KEY, PANEL_PLAYER_KEY, KEY_START,
     ROLE_IMPOSTOR, ROLE_TRIPULANTE, ROLE_COMPLICE, ROLE_DETECTIVE,
     ROLE_PARANOICO, ROLE_GEMELO, ROLE_GLITCH, ROLE_VIDENTE,
     ROLE_POETA, ROLE_JUEZ, ROLE_DESPISTADO, ROLES_DATA, ROLE_NARRADOR,
     ROLE_LOBO, ROLE_LOBO_BLANCO, ROLE_ALDEANO, ROLES_LOBO_DATA,
-    MODE_IMPOSTOR, MODE_LOBO, ROLE_LOBO_CACHORRO,
+    MODE_IMPOSTOR, MODE_LOBO, ROLE_LOBO_CACHORRO, MODE_CAMELOT, 
+    ROLES_CAMELOT_DATA, ROLE_ESBIRRO, ROLE_SERVIDOR, 
+    ROLE_CAMELOT_ESPE_ALIADO, ROLE_CAMELOT_ESPE_MORDRED,
+    CAMELOT_MISSIONS_KEY, ROLES_DISTRIBUTION_CAMELOT, GAME_LIMITS
 } from './config.js';
 
 // === VARIABLES DE ESTADO ===
@@ -151,11 +154,13 @@ export function reorderPlayers(draggedId, targetId) {
     refreshPlayerListUI();
 }
 
+
 /**
  * Solicita a la UI que redibuje la lista de jugadores con los datos actuales.
  */
 function refreshPlayerListUI() {
     UI.renderPlayerList(players, removePlayer, editPlayerName, reorderPlayers);
+    UI.actualizarSelectorCantidad(players.length);
 }
 
 /**
@@ -164,12 +169,13 @@ function refreshPlayerListUI() {
  * @returns {boolean} True si se añadió, false si falló la validación.
  */
 export function addPlayer(name) {
+    const { max } = getGameLimits();
     const cleanName = name.trim().toUpperCase();
 
     // Validaciones
     if (cleanName.length === 0 || cleanName.length > MAX_NAME_LENGTH) return false;
-    if (players.length >= MAX_PLAYERS) {
-        alert(`Máximo ${MAX_PLAYERS} jugadores alcanzado.`);
+    if (players.length >= max) {
+        alert(`Máximo ${max} jugadores alcanzado.`);
         return false;
     }
     if (players.some(p => p.name === cleanName)) {
@@ -316,9 +322,38 @@ export function asignarRoles(totalPlayers, numImpostors, rolesPermitidos) {
         // 3. Rellenar el resto con Tripulantes normales
         const totalActual = roles.length;
         for (let i = 0; i < (totalPlayers - totalActual); i++) roles.push(ROLE_TRIPULANTE);
+
+    } else if (mode === MODE_CAMELOT) {
+        // --- LÓGICA MODO CAMELOT ---
+
+
+
+        // 1. Clasificar especiales seleccionados por bando
+        const malvadosEspeciales = shuffleArray(rolesPermitidos.filter(r => ROLE_CAMELOT_ESPE_MORDRED.includes(r)));
+        const aliadosEspeciales = shuffleArray(rolesPermitidos.filter(r => ROLE_CAMELOT_ESPE_ALIADO.includes(r)));
+
+        // 2. Asignar Malvados (hasta numImpostors)
+        malvadosEspeciales.forEach(rol => {
+            if (roles.length < numImpostors) roles.push(rol);
+        });
+        while (roles.length < numImpostors) {
+            roles.push(ROLE_ESBIRRO);
+        }
+
+        // 3. Asignar Leales (hasta totalPlayers)
+        const numLealesNecesarios = totalPlayers - numImpostors;
+        const cupoLealesFinal = roles.length + numLealesNecesarios;
+
+        aliadosEspeciales.forEach(rol => {
+            if (roles.length < cupoLealesFinal) roles.push(rol);
+        });
+        while (roles.length < totalPlayers) {
+            roles.push(ROLE_SERVIDOR);
+        }
+
     } else {
         // --- LÓGICA MODO CASTRO NEGRO ---
-        
+
         // 1. Añador al narrador si está activado
         if (rolesPermitidos.includes(ROLE_NARRADOR)) {
             roles.push(ROLE_NARRADOR);
@@ -399,6 +434,9 @@ export function clearGameState() {
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith(PANEL_PLAYER_KEY)) localStorage.removeItem(key);
     });
+
+    // Limpiar el estado de misiones
+    localStorage.removeItem(CAMELOT_MISSIONS_KEY);
 }
 
 /**
@@ -419,8 +457,15 @@ export function finalizarPartida() {
  * @param {Array<string>} rolesPermitidos - Lista de roles especiales activos.
  */
 export function iniciarPartida(impostorsOption, rolesPermitidos = []) {
-    if (players.length < MIN_PLAYERS) {
-        alert(`Necesitas al menos ${MIN_PLAYERS} jugadores para empezar.`);
+    const { min, max } = getGameLimits();
+
+    if (players.length < min) {
+        alert(`Necesitas al menos ${min} jugadores para empezar.`);
+        return;
+    }
+
+    if (players.length > max) {
+        alert(`Este modo no permite más de ${max} jugadores.`);
         return;
     }
 
@@ -428,9 +473,9 @@ export function iniciarPartida(impostorsOption, rolesPermitidos = []) {
     const finalImpostors = Math.min(numImpostors, players.length); //Asegurarse que no haya mas impostores que jugadores
     const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
 
-    // Seleccionar la palabra si NO es modo CASTRO NEGRO
+    // Seleccionar la palabra si es modo IMPOSTOR
     let palabraSecreta = '-';
-    if (mode !== MODE_LOBO) {
+    if (mode === MODE_IMPOSTOR) {
         palabraSecreta = seleccionarPalabra();
     }
 
@@ -570,6 +615,35 @@ export function revelarRol(player, palabraSecreta) {
                 </button>
             </div>
         </div>`;
+    } else if (mode === MODE_CAMELOT) {
+        // --- DISEÑO PARA MOODO CAMELOT ---
+        const configRol = ROLES_CAMELOT_DATA.find(r => r.id === player.role) || { icon: '❓', color: 'gray-500', name: 'Desconocido', description: '' };
+        const borderClass = `border-${configRol.color}`;
+        const bgClass = `bg-${configRol.color}`;
+        const textClass = `text-${configRol.color}`;
+
+        contenedor.innerHTML = `
+        <div class="rol-card bg-tarjeta rounded-2xl p-6 border-t-8 ${borderClass} shadow-2xl flex flex-col w-full max-w-[450px] mx-auto min-h-[400px]">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="text-4xl">${configRol.icon}</span>
+                <span class="text-2xl font-bold uppercase text-white">${player.name}</span>
+            </div>
+            <div class="flex-grow flex flex-col justify-center">        
+                <div class="${bgClass}/10 border ${borderClass}/30 rounded-xl p-4 mb-4 text-center">
+                    <p class="text-[10px] ${textClass} font-bold uppercase mb-1">Rol</p>
+                    <p class="text-4xl font-black text-white uppercase">${configRol.name}</p>
+                </div>
+                <div class="bg-black/30 p-2 rounded-lg border-l-4 ${borderClass} mb-3 text-center">
+                    <p class="text-sm font-semibold text-white italic">${configRol.description || "Tu destino está escrito en las estrellas de Castronegro."}</p>
+                </div>
+            </div>
+            <div class="mt-2 shrink-0">
+                <button id="modal-close-btn" class="mt-2 w-full py-3 px-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-150 text-lg">
+                ¡Entendido! Ocultar y pasar.
+                </button>
+            </div>
+        </div>`;
+
     } else {
         // --- DISEÑO PARA MODO IMPOSTOR ---
         const data = player.extraInfo;
@@ -732,8 +806,15 @@ export function limpiarTodasVariables() {
  */
 function calcularNumImpostores(impostorsOption) {
     const totalPlayers = players.length;
+    const mode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+
+    // Si estamos en Camelot, los enemigos se calculan dinámicamente según el número de jugadores
+    if (mode === MODE_CAMELOT) {
+        const config = getCamelotConfig(totalPlayers);
+        return config.mordred;
+    }
+
     const minImpostors = 1;
-    if (totalPlayers < MIN_PLAYERS) return 0;
     const maxAbsoluteLimit = totalPlayers;
 
     // 1. Opción de número fijo (1, 2, 3, 4)
@@ -820,4 +901,23 @@ export function elegirJugadorAleatorio() {
     if (players.length === 0) return;
     const elegido = players[Math.floor(Math.random() * players.length)];
     UI.mostrarElegido(elegido.name);
+}
+
+export const getCamelotConfig = (totalJugadores) => {
+    return ROLES_DISTRIBUTION_CAMELOT.find(config => config.jug === totalJugadores)
+        || { aliados: 0, mordred: 0 };
+};
+
+// Ejemplo de uso en una función interna
+export function obtenerCantidadJugadores() {
+    return players.length;
+}
+
+/**
+ * Obtiene los límites de jugadores según el modo activo.
+ * @returns {{min: number, max: number}}
+ */
+export function getGameLimits() {
+    const currentMode = localStorage.getItem(GAME_MODE_KEY) || MODE_IMPOSTOR;
+    return GAME_LIMITS[currentMode] || GAME_LIMITS[MODE_IMPOSTOR];
 }
